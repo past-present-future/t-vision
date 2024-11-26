@@ -1,6 +1,7 @@
-#ifndef MY-UTILS_HPP
-#define MY-UTILS_HPP
+#ifndef MY_UTILS_HPP 
+#define MY_UTILS_HPP 
+#include <iostream>
 
-void lib_hello(void);
+std::string load_shader_from_file(const std::string& filename);
 
 #endif /* MY-UTILS_HPP */

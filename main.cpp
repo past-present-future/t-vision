@@ -1,40 +1,9 @@
-#include <GL/glew.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
-#include <GLFW/glfw3.h>
 #include <iostream>
 #include <string>
 #include <fstream>
 #include <sstream>
-
-const char* vertexShaderSource = R"(
-    #version 330 core
-    layout (location = 0) in vec3 aPos;
-    layout (location = 1) in vec2 aTexCoord;
-    out vec2 TexCoord;
-    void main()
-    {
-        gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
-        TexCoord = aTexCoord;
-    }
-)";
-
-const char *fragmentShaderSource = R"(
-    #version 330 core
-    out vec4 FragColor;
-    in vec2 TexCoord;
-    uniform sampler2D ourTexture;
-    uniform float time;
-    void main()
-    {
-        vec2 uv = TexCoord;
-        uv.x += sin(uv.y * 10.0 + time) * 0.1;
-        FragColor = texture(ourTexture, uv);
-    }
-)";
-
-GLuint compile_shader_source(GLenum type, const std::string& source);
-std::string load_shader_from_file(const std::string& filename);
+#include "include/render-pipe.hpp"
+#include "include/my-utils.hpp"
 
 int main(void)
 {
@@ -142,20 +111,3 @@ std::string load_shader_from_file(const std::string& filename)
 	return buffer.str();
 }
 
-GLuint compile_shader_source(GLenum type, const std::string& source){
-  GLuint shader = glCreateShader(type);
-  const char* src = source.c_str();
-  glShaderSource(shader, 1, &src, nullptr);
-  glCompileShader(shader);
-
-  GLint ret;
-  glGetShaderiv(shader, GL_COMPILE_STATUS, &ret);
-  if(!ret){
-	GLchar info_log[512];
-	glGetShaderInfoLog(shader, sizeof(info_log), nullptr, info_log);
-	std::cerr << "Shader compilation failed:\n" << info_log << std::endl;
-	glDeleteShader(shader);
-	return 0;
-  }
-  return shader;
-}
