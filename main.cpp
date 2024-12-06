@@ -7,6 +7,9 @@
 
 int main(void)
 {
+  rp::vec2 dims{1280,720};
+  rp::Camera cam("/dev/video0", dims);
+  cam.configure_buffers();
   if (!glfwInit())
 	{
 	  std::cerr << "Failed to initialize GLFW" << std::endl;
@@ -40,10 +43,10 @@ int main(void)
     }
 
   std::string vertex_shader_src = load_shader_from_file("vertex.glsl");
-  GLuint vert_shader = compile_shader_source(GL_VERTEX_SHADER, vertex_shader_src);
+  GLuint vert_shader = rp::compile_shader_source(GL_VERTEX_SHADER, vertex_shader_src);
 
   std::string fragment_shader_src = load_shader_from_file("fragment.glsl");
-  GLuint frag_shader = compile_shader_source(GL_FRAGMENT_SHADER, fragment_shader_src);
+  GLuint frag_shader = rp::compile_shader_source(GL_FRAGMENT_SHADER, fragment_shader_src);
 
   GLuint shader_program = glCreateProgram();
   glAttachShader(shader_program, vert_shader);
@@ -60,17 +63,22 @@ int main(void)
      0.5f, -0.5f, 0.0f,
      0.0f,  0.5f, 0.0f
   };
-  GLuint VBO, VAO;
+  GLuint VBO, VAO, texture;
   glGenVertexArrays(1, &VAO);
   glGenBuffers(1, &VBO);
+  glGenTextures(1, &texture);
 
   glBindVertexArray(VAO);
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), NULL);
   glEnableVertexAttribArray(0);
-
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  
+  cam.start_stream();
   while(!glfwWindowShouldClose(window))
   {
 	{
@@ -79,10 +87,8 @@ int main(void)
 	  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	  glUseProgram(shader_program);
-	  
-	  float time_val = glfwGetTime();
-	  int time_shader_var = glGetUniformLocation(shader_program, "time");
-	  glUniform1f(time_shader_var, time_val);
+	  void* temp = cam.get_frame();
+	  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, dims.x, dims.y, 0, GL_RGB, GL_UNSIGNED_BYTE, temp);
 
 	  glBindVertexArray(VAO);
 	  glDrawArrays(GL_TRIANGLES, 0, 3);

@@ -1,9 +1,10 @@
 #version 330 core
 out vec4 FragColor;
+in vec2 TexCoord;
 
-uniform float time;
+uniform sampler2D frameTexture;
 
 void main()
 {
-    FragColor = vec4(sin(time) * 0.5 + 0.5, cos(time) * 0.5 + 0.5, 0.0, 1.0);
+    FragColor = texture(frameTexture, TexCoord);
 }
