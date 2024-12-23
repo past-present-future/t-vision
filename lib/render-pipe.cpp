@@ -41,7 +41,7 @@ rp::Camera::Camera(){
 	perror("Failed to get device capabilities, VIDIOC_QUERYCAP");
   }
   
-  this->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  this->fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
   this->fmt.fmt.pix.width = 1024;
   this->fmt.fmt.pix.height = 768;
   this->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YVU420;
@@ -60,6 +60,9 @@ rp::Camera::Camera(const char* cam_path, vec2 dims){
   if( ioctl(this->file_desc, VIDIOC_QUERYCAP, &(this->caps)) < 0){
 	perror("Failed to get device capabilities, VIDIOC_QUERYCAP");
   }
+  else {
+     printf("Caps reported got: %x\n", this->caps.capabilities);
+  }
    	
   this->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   this->fmt.fmt.pix.width = dims.x;
@@ -72,8 +75,8 @@ rp::Camera::Camera(const char* cam_path, vec2 dims){
   }
   else{
     dims.x = this->fmt.fmt.pix.width;
-	dims.y= this->fmt.fmt.pix.height;
-	printf("Dims got x: %d, y; %d\n", dims.x, dims.y);
+    dims.y= this->fmt.fmt.pix.height;
+    printf("Dims got x: %d, y: %d\n\rFormat got: %x\n", dims.x, dims.y, this->fmt.fmt.pix.pixelformat);
   }
 }
 
@@ -117,10 +120,10 @@ void* rp::Camera::get_frame(){
   fds[0].fd = this->file_desc;
   fds[0].events = POLLIN;
   struct timeval tv;
-  int ret;;
+  int ret=1;
   tv.tv_sec = 5;
   tv.tv_usec = 0;
-  ret = poll(fds, 1, 5000);
+  //ret = poll(fds, 1, 5000);
   if (ret <= 0){
 	ioctl(this->file_desc, VIDIOC_LOG_STATUS);
 	std::cerr << "Could not select device, error code: " << errno << std::endl;
