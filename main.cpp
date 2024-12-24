@@ -72,10 +72,12 @@ int main(void)
   PFNGLGETSTRINGIPROC glGetStringi = 0;
   glGetStringi = (PFNGLGETSTRINGIPROC)glfwGetProcAddress("glGetStringi");
 
+  std::cout << "Supported extensions: \n";
   for (GLint i=0; i<n; i++) 
   { 
 	const char* extension = 
 	  (const char*)glGetStringi(GL_EXTENSIONS, i);
+	std::cout << "     " << extension << std::endl;
   } 
   std::string vertex_shader_src = load_shader_from_file("vertex.glsl");
   GLuint vert_shader = rp::compile_shader_source(GL_VERTEX_SHADER, vertex_shader_src);

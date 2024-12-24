@@ -175,3 +175,4 @@ std::string rp::Renderer::load_shader_from_file(const std::string& filename)
 	buffer << file.rdbuf();
 	return buffer.str();
 }
+

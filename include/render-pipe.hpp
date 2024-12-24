@@ -56,7 +56,9 @@ namespace rp
     int create_shader_program(const char * vert_shader_path, const char * frag_shader_path);
   };
 
- 
+  /* Implement uniform location automatic pickup, list the variable names and assign them in declared order. 
+
+   */
   
 };
 #endif /*RENDER_PIPE_HPP*/
