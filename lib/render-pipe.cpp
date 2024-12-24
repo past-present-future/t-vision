@@ -1,6 +1,8 @@
 #include "../include/render-pipe.hpp"
+#include <fstream>
 #include <bits/types/struct_timeval.h>
 #include <cerrno>
+#include <sstream>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -14,7 +16,7 @@
 #include <time.h>
 
 
-GLuint rp::compile_shader_source(GLenum type, const std::string& source){
+GLuint rp::Renderer::compile_shader_source(GLenum type, const std::string& source){
   GLuint shader = glCreateShader(type);
   const char* src = source.c_str();
   glShaderSource(shader, 1, &src, nullptr);
@@ -116,18 +118,9 @@ int rp::Camera::start_stream(){
 }
 
 void* rp::Camera::get_frame(){
-  struct pollfd fds[1];
-  fds[0].fd = this->file_desc;
-  fds[0].events = POLLIN;
   struct timeval tv;
-  int ret=1;
-  tv.tv_sec = 5;
-  tv.tv_usec = 0;
-  //ret = poll(fds, 1, 5000);
-  if (ret < 0){
-	ioctl(this->file_desc, VIDIOC_LOG_STATUS);
-	std::cerr << "Could not select device, error code: " << errno << std::endl;
-  }
+  int ret=0;
+  
   ret = ioctl(this->file_desc, VIDIOC_QBUF, &(this->frame_handle.buffer));
    if (ret < 0){
 	ioctl(this->file_desc, VIDIOC_LOG_STATUS);
@@ -148,4 +141,37 @@ void* rp::Camera::get_frame(){
 rp::Camera::~Camera(){
   ioctl(this->file_desc, VIDIOC_STREAMOFF, &(this->frame_handle.buffer.type));
   munmap(this->frame_handle.frame_data, this->frame_handle.buffer.length);
+}
+
+int rp::Renderer::create_shader_program(const char * vert_shader_path, const char * frag_shader_path){
+  std::string vertex_shader_src = load_shader_from_file(vert_shader_path);
+  GLuint vert_shader = compile_shader_source(GL_VERTEX_SHADER, vertex_shader_src);
+  if (vert_shader < 0)
+    return 1;
+ 
+  std::string fragment_shader_src = load_shader_from_file(frag_shader_path);
+  GLuint frag_shader = compile_shader_source(GL_FRAGMENT_SHADER, fragment_shader_src);
+  if (frag_shader < 0)
+    return 1;
+
+  GLuint shader_program = glCreateProgram();
+  glAttachShader(shader_program, vert_shader);
+  glAttachShader(shader_program, frag_shader);
+  glLinkProgram(shader_program);
+
+  glDeleteShader(vert_shader);
+  glDeleteShader(frag_shader);
+  return 0;
+}
+
+std::string rp::Renderer::load_shader_from_file(const std::string& filename)
+{
+	std::ifstream file(filename);
+	if(!file.is_open()){
+		std::cerr << "Failed to open file: " << filename << std::endl;
+		return "";
+	}
+	std::stringstream buffer;
+	buffer << file.rdbuf();
+	return buffer.str();
 }

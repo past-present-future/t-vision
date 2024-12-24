@@ -41,8 +41,22 @@ namespace rp
 	void* get_frame();
 	~Camera();
   };
-  
-  GLuint compile_shader_source(GLenum type, const std::string& source);
+
+  class Renderer{
+  private:
+    GLuint shader_program;
+    vec2 viewport_dims;
+    void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+    GLuint compile_shader_source(GLenum type, const std::string& source);
+    std::string load_shader_from_file(const std::string& filename);
+  public:
+    Renderer();
+    Renderer(vec2 render_dims);
+    void enable_gl_debug();
+    int create_shader_program(const char * vert_shader_path, const char * frag_shader_path);
+  };
+
+ 
   
 };
 #endif /*RENDER_PIPE_HPP*/
