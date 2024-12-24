@@ -23,6 +23,6 @@ void main()
 	g=y-0.39173*u-0.81290*v;
 	b=y+2.017*u;
 
-	FragColor = vec4(r, g, b, 1.0);
+	FragColor = vec4(r,g,b,1.0);
 
 }

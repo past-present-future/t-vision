@@ -42,8 +42,8 @@ rp::Camera::Camera(){
   }
   
   this->fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-  this->fmt.fmt.pix.width = 1024;
-  this->fmt.fmt.pix.height = 768;
+  this->fmt.fmt.pix.width = 320;
+  this->fmt.fmt.pix.height = 180;
   this->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_YVU420;
   this->fmt.fmt.pix.field = V4L2_FIELD_NONE;
 
@@ -124,16 +124,24 @@ void* rp::Camera::get_frame(){
   tv.tv_sec = 5;
   tv.tv_usec = 0;
   //ret = poll(fds, 1, 5000);
-  if (ret <= 0){
+  if (ret < 0){
 	ioctl(this->file_desc, VIDIOC_LOG_STATUS);
 	std::cerr << "Could not select device, error code: " << errno << std::endl;
   }
   ret = ioctl(this->file_desc, VIDIOC_QBUF, &(this->frame_handle.buffer));
+   if (ret < 0){
+	ioctl(this->file_desc, VIDIOC_LOG_STATUS);
+	std::cerr << "Could not queue buffer: " << errno << std::endl;
+  }
   struct timespec ts;
   ts.tv_sec = 0;
   ts.tv_nsec = 16000;
   nanosleep(&ts, nullptr);
   ret = ioctl(this->file_desc, VIDIOC_DQBUF, &(this->frame_handle.buffer));
+   if (ret < 0){
+	ioctl(this->file_desc, VIDIOC_LOG_STATUS);
+	std::cerr << "Could not return buffer: " << errno << std::endl;
+  }
   return this->frame_handle.frame_data;
 }
 

@@ -10,7 +10,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	// make sure the viewport matches the new window dimensions; note that width and 
 	// height will be significantly larger than specified on retina displays.
-	glViewport(0, 0, 320, 180);
+	glViewport(0, 0, 640, 360);
 }
 
 void GLAPIENTRY
@@ -40,7 +40,7 @@ int main(void)
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-  GLFWwindow* window = glfwCreateWindow(320, 180, "OpenGL Shader Example", NULL, NULL);
+  GLFWwindow* window = glfwCreateWindow(1280, 720, "OpenGL Shader Example", NULL, NULL);
 
   if (!window)
   {
@@ -66,8 +66,8 @@ int main(void)
   rp::Camera cam("/dev/video0", dims);
   // std::cout << __LINE__ << std::endl;
   cam.configure_buffers();
-  ///glEnable(GL_DEBUG_OUTPUT);
-  //glDebugMessageCallback( MessageCallback, 0 );
+  glEnable(GL_DEBUG_OUTPUT);
+  glDebugMessageCallback( MessageCallback, 0 );
   GLint n=0; 
   glGetIntegerv(GL_NUM_EXTENSIONS, &n); 
   PFNGLGETSTRINGIPROC glGetStringi = 0;
@@ -136,33 +136,62 @@ int main(void)
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(0);
 
-  // texture coord attribute
+  // texture coordinate attribute
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
   while((err = glGetError()) != GL_NO_ERROR){
 	printf("ERROR - vertex attrib array: %x\n", err);
   }
+  cam.start_stream();
+  uint8_t *tmp;
+  tmp = (uint8_t*)cam.get_frame();
 
-  uint8_t *tmp[3];
-  tmp[0] = (uint8_t*)cam.get_frame();
-  tmp[1] = tmp[0] + dims.x * dims.y;
-  tmp[2] = tmp[1] + (dims.x * dims.y)/4;
   
   unsigned int textureY, textureU, textureV;
   glGenTextures(1, &textureY);
   while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - Tex1 gen_tex: %x\n", err);
+	printf("ERROR - Tex0 gen_tex: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
   glBindTexture(GL_TEXTURE_2D, textureY);
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Tex0 bind: %x\n", err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  // set the texture wrapping parameters
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	// set texture wrapping to GL_REPEAT (default wrapping method)
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Tex0 tex_param_1: %x\n", err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  // set texture filtering parameters
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Tex0 tex_param_2: %x\n", err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, dims.x, dims.y, 0, GL_RED, GL_UNSIGNED_BYTE, tmp);
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Tex0: %x\n", err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glGenerateMipmap(GL_TEXTURE_2D);
+
+  glActiveTexture(GL_TEXTURE1);
+  glGenTextures(1, &textureU);
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Tex1 gen_tex: %x\n", err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glBindTexture(GL_TEXTURE_2D, textureU);
   while((err = glGetError()) != GL_NO_ERROR){
 	printf("ERROR - Tex1 bind: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
   // set the texture wrapping parameters
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);	// set texture wrapping to GL_REPEAT (default wrapping method)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	// set texture wrapping to GL_REPEAT (default wrapping method)
   while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - Tex1 tex_param_1: %x\n", err);
+	printf("ERROR - Tex1 tex_param_2: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -171,45 +200,49 @@ int main(void)
 	printf("ERROR - Tex1 tex_param_2: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, dims.x, dims.y, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, dims.x/2, dims.y/2, 0, GL_RED, GL_UNSIGNED_BYTE, tmp + (dims.x * dims.y));
   while((err = glGetError()) != GL_NO_ERROR){
 	printf("ERROR - Tex1: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
-  
   glGenerateMipmap(GL_TEXTURE_2D);
-  glBindTexture( GL_TEXTURE_2D, 0);
-  glGenTextures(1, &textureU);
-  glBindTexture(GL_TEXTURE_2D, textureU);
+  
+  glActiveTexture(GL_TEXTURE2);
+  glGenTextures(1, &textureV);
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Tex2 gen_tex: %x\n", err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glBindTexture(GL_TEXTURE_2D, textureV);
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Tex2 bind: %x\n", err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
   // set the texture wrapping parameters
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);	// set texture wrapping to GL_REPEAT (default wrapping method)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	// set texture wrapping to GL_REPEAT (default wrapping method)
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Tex2 tex_param_1: %x\n", err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	
   // set texture filtering parameters
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, dims.x / 2, dims.y / 2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Tex2 tex_param_2: %x\n", err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, dims.x/2, dims.y/2, 0, GL_RED, GL_UNSIGNED_BYTE, tmp + (dims.x * dims.y) + (dims.x * dims.y)/4);
   while((err = glGetError()) != GL_NO_ERROR){
 	printf("ERROR - Tex2: %x\n", err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
   glGenerateMipmap(GL_TEXTURE_2D);
-  glBindTexture( GL_TEXTURE_2D, 0);
-  glGenTextures(1, &textureV);
-  glBindTexture(GL_TEXTURE_2D, textureV);
-  // set the texture wrapping parameters
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);	// set texture wrapping to GL_REPEAT (default wrapping method)
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  // set texture filtering parameters
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, dims.x / 2, dims.y / 2, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
-  while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - Tex3: %x\n", err);
-  }
-  glGenerateMipmap(GL_TEXTURE_2D);
-  glBindTexture( GL_TEXTURE_2D, 0);
+  
   glUseProgram(shader_program);
 
   glUniform1i(glGetUniformLocation(shader_program, "textureY"), 0);
   glUniform1i(glGetUniformLocation(shader_program, "textureU"), 1);
   glUniform1i(glGetUniformLocation(shader_program, "textureV"), 2);
-
+ 
  
   
   while((err = glGetError()) != GL_NO_ERROR){
@@ -220,9 +253,9 @@ int main(void)
   while(!glfwWindowShouldClose(window))
   {
 	{
-	  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	  
 	  // magic happens here
-	  glClearColor(0.0f, 0.2f, 0.4f, 0.5);
+	  glClearColor(0.0f, 0.2f, 0.4f, 1.0);
 	  //glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	  while((err = glGetError()) != GL_NO_ERROR){
 	    printf("ERROR - glClearColor(): %x\n", err);
@@ -233,50 +266,42 @@ int main(void)
 	    printf("ERROR - glClear(): %x\n", err);
 	    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
 	  }
+	  
+	  tmp = (uint8_t*)cam.get_frame();
+	  
+	  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	  glActiveTexture(GL_TEXTURE0);
+	  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, dims.x, dims.y, GL_RED, GL_UNSIGNED_BYTE, tmp);
+	   while((err = glGetError()) != GL_NO_ERROR){
+	    printf("ERROR - tex_sub0: %x\n", err);
+	    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+	  }
+	   
+	  glActiveTexture(GL_TEXTURE1);
+	  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, dims.x/2, dims.y/2, GL_RED, GL_UNSIGNED_BYTE, tmp + (dims.x * dims.y));
+	  //glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+	  while((err = glGetError()) != GL_NO_ERROR){
+	    printf("ERROR - tex_sub1: %x\n", err);
+	    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+	  }
+
+	   glActiveTexture(GL_TEXTURE2);
+	  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, dims.x/2, dims.y/2, GL_RED, GL_UNSIGNED_BYTE, tmp + (dims.x * dims.y) + (dims.x * dims.y)/4);
+	   while((err = glGetError()) != GL_NO_ERROR){
+	    printf("ERROR - tex_sub2: %x\n", err);
+	    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+	  }
 	  glUseProgram(shader_program);
 	  glBindVertexArray(VAO);
 	  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	  while((err = glGetError()) != GL_NO_ERROR){
-		printf("ERROR - Draw command: %x\n", err);
+	    printf("ERROR - Draw command: %x\n", err);
 	  }
 	  
 	}
 	glfwSwapBuffers(window);
 	glfwPollEvents();
-	tmp[0] = (uint8_t*)cam.get_frame();
-	tmp[1] = tmp[0] + dims.x * dims.y;
-	tmp[2] = tmp[1] + (dims.x * dims.y)/4;
-	//printf("%d\n", glGetError());
-	
-	glBindTexture(GL_TEXTURE_2D, textureY);
-	glActiveTexture(GL_TEXTURE0);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, dims.x, dims.y, GL_RED, GL_UNSIGNED_BYTE, tmp[0]);
-	
-	//glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-	while((err = glGetError()) != GL_NO_ERROR){
-	  printf("ERROR - tex_sub1: %x\n", err);
-	  fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
-	}
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, textureU);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, dims.x/2, dims.y/2, GL_RED, GL_UNSIGNED_BYTE, tmp[1]);
-	//glClearColor(0.0f, 0.2f, 0.4f, 0.5);
-	//glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-	while((err = glGetError()) != GL_NO_ERROR){
-	  printf("ERROR - glClearColor(): %x\n", err);
-	  fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
-	}
-	
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, textureV);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, dims.x/2, dims.y/2, GL_RED, GL_UNSIGNED_BYTE, tmp[2]);
-	//glClearColor(0.0f, 0.2f, 0.4f, 0.5);
-	//glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-	while((err = glGetError()) != GL_NO_ERROR){
-	  printf("ERROR - glClearColor(): %x\n", err);
-	  fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
-	}
   }
 
   glDeleteVertexArrays(1, &VAO);
