@@ -12,6 +12,8 @@ find_package(OpenGL REQUIRED)
 
 add_executable(${PROJECT_NAME} main.cpp)
 
+add_subdirectory(lib)
+
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLFW_INCLUDE_DIRS}
@@ -27,6 +29,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${OPENGL_LIBRARIES}
     EGL
 	GLEW
+	my-utils
+	render-pipe
 )
 
 # Set compile options
