@@ -43,5 +43,6 @@ namespace rp
   };
   
   GLuint compile_shader_source(GLenum type, const std::string& source);
+  
 };
 #endif /*RENDER_PIPE_HPP*/

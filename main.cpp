@@ -24,16 +24,16 @@ MessageCallback( GLenum source,
 {
   fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
            ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
-            type, severity, message );
+	   type, severity, message );
 }
 
 int main(void)
 {
   
   if (!glfwInit())
-	{
-	  std::cerr << "Failed to initialize GLFW" << std::endl;
-	}
+  {
+    std::cerr << "Failed to initialize GLFW" << std::endl;
+  }
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -64,7 +64,6 @@ int main(void)
   }
   rp::vec2 dims{320,180};
   rp::Camera cam("/dev/video0", dims);
-  // std::cout << __LINE__ << std::endl;
   cam.configure_buffers();
   glEnable(GL_DEBUG_OUTPUT);
   glDebugMessageCallback( MessageCallback, 0 );
@@ -77,7 +76,6 @@ int main(void)
   { 
 	const char* extension = 
 	  (const char*)glGetStringi(GL_EXTENSIONS, i);
-	//printf("Ext %d: %s\n", i, extension); 
   } 
   std::string vertex_shader_src = load_shader_from_file("vertex.glsl");
   GLuint vert_shader = rp::compile_shader_source(GL_VERTEX_SHADER, vertex_shader_src);
@@ -92,8 +90,7 @@ int main(void)
 
   glDeleteShader(vert_shader);
   glDeleteShader(frag_shader);
-  // std::cout << __LINE__ << std::endl;
-  // Set up vertex data
+ 
   float vertices[] =
 	{
 	// positions          // texture coords
@@ -158,8 +155,8 @@ int main(void)
 	printf("ERROR - Tex0 bind: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
-  // set the texture wrapping parameters
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	// set texture wrapping to GL_REPEAT (default wrapping method)
+  // set the texture minimize/magnify parameters
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   while((err = glGetError()) != GL_NO_ERROR){
 	printf("ERROR - Tex0 tex_param_1: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
@@ -188,9 +185,8 @@ int main(void)
 	printf("ERROR - Tex1 bind: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
-  // set the texture wrapping parameters
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	// set texture wrapping to GL_REPEAT (default wrapping method)
-  while((err = glGetError()) != GL_NO_ERROR){
+  // set the texture minimize/magnify parameters
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);  while((err = glGetError()) != GL_NO_ERROR){
 	printf("ERROR - Tex1 tex_param_2: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
@@ -218,8 +214,8 @@ int main(void)
 	printf("ERROR - Tex2 bind: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
-  // set the texture wrapping parameters
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	// set texture wrapping to GL_REPEAT (default wrapping method)
+  // set the texture minimize/magnify parameters
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	
   while((err = glGetError()) != GL_NO_ERROR){
 	printf("ERROR - Tex2 tex_param_1: %x\n", err);
 	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
@@ -248,7 +244,6 @@ int main(void)
   while((err = glGetError()) != GL_NO_ERROR){
 	  std::cerr << "ERROR - Var linking: "<< err << std::endl;
   }
-  //cam.start_stream();
   
   while(!glfwWindowShouldClose(window))
   {
