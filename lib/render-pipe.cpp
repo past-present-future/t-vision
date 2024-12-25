@@ -1,4 +1,5 @@
 #include "../include/render-pipe.hpp"
+#include <cstddef>
 #include <fstream>
 #include <bits/types/struct_timeval.h>
 #include <cerrno>
@@ -33,6 +34,8 @@ GLuint rp::Renderer::compile_shader_source(GLenum type, const std::string& sourc
   }
   return shader;
 }
+rp::Renderer::Renderer(rp::vec2 dims) : texture_num((size_t)0), tex_context_ary{}, viewport_dims(dims) {}
+
 
 rp::Camera::Camera(){
   this->file_desc = open("/dev/video0", O_RDWR);
@@ -161,6 +164,36 @@ int rp::Renderer::create_shader_program(const char * vert_shader_path, const cha
 
   glDeleteShader(vert_shader);
   glDeleteShader(frag_shader);
+
+  GLuint i;
+  GLint count;
+
+  GLint size; // size of the variable
+  GLenum type; // type of the variable (float, vec3 or mat4, etc)
+
+  const GLsizei bufSize = 16; // maximum name length
+  GLchar name[bufSize]; // variable name in GLSL
+  GLsizei length; // name length
+
+  std::cout << "Shader program variables: \n\r";
+
+  glGetProgramiv(shader_program, GL_ACTIVE_ATTRIBUTES, &count);
+  std::cout << "Active attributes:\n";
+
+  for( i = count-1 ; i <= 0 ; --i)
+    { 
+      glGetActiveAttrib(shader_program, i, bufSize, &length, &size, &type, name);
+      std::cout << "\tAttribute #" << i << " \n\r\tType: " << type << "\n\r\t Name: "<< name << std::endl;
+    }
+  glGetProgramiv(shader_program, GL_ACTIVE_UNIFORMS, &count);
+  printf("Active Uniforms: %d\n", count);
+
+  for (i = 0; i < count; i++)
+    {
+      glGetActiveUniform(shader_program, (GLuint)i, bufSize, &length, &size, &type, name);
+
+      printf("Uniform #%d Type: %u Name: %s\n", i, type, name);
+    }
   return 0;
 }
 
@@ -176,3 +209,65 @@ std::string rp::Renderer::load_shader_from_file(const std::string& filename)
 	return buffer.str();
 }
 
+int rp::Renderer::vertex_setup(float *vertices, uint8_t *indices)
+{
+  GLenum err=GL_NO_ERROR;
+  
+  glGenVertexArrays(1, &(this->VAO));
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - VertexArray: %x\n", err );
+  }
+  
+  glGenBuffers(1, &(this->VBO));
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - GenVBO: %x\n", err);
+  }
+
+  glGenBuffers(1, &(this->EBO));
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - GenEBO: %x\n", err );
+  }
+  glBindVertexArray(this->VAO);
+
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  
+  
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+  
+  while((err = glGetError()) != GL_NO_ERROR){
+	  std::cerr << "ERROR - BindBuffers: %d"<< err << std::endl;
+  }
+
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0);
+
+  // texture coordinate attribute
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - vertex attrib array: %x\n", err);
+  }
+}
+
+int rp::Renderer::create_texture(rp::tex_context tex_info)
+{
+  GLuint active_tex, err=GL_NO_ERROR;
+  glGetIntegerv(GL_ACTIVE_TEXTURE, &active_tex);
+  if( active_tex != (GL_TEXTURE0 + this->texture_num))
+    glActiveTexture(GL_TEXTURE0 + this->texture_num);
+
+  glGenTextures(1, &(tex_info.id));
+   while((err = glGetError()) != GL_NO_ERROR){
+     printf("ERROR - Tex #%u gen_tex: %x\n", tex_info.id, err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glBindTexture(GL_TEXTURE_2D, tex_info.id);
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Tex #%u bind: %x\n", tex_info.id, err);
+	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  
+  return 0;
+}
