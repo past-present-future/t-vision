@@ -16,8 +16,8 @@ namespace rp
 {
   typedef struct vec2Type
   {
-	uint32_t x;
-	uint32_t y;
+	size_t x;
+	size_t y;
   } vec2;
   
   typedef struct tex_contextType
@@ -26,6 +26,7 @@ namespace rp
     vec2 dims = {0,0};
     GLuint internal_format = GL_RGBA;
     GLuint data_type = GL_UNSIGNED_BYTE;
+    char uniform_name[16]="";
   }tex_context;
 
   typedef struct frame_bufferType {
@@ -56,22 +57,28 @@ namespace rp
     GLuint shader_program;
     GLuint VBO, VAO, EBO;
     vec2 viewport_dims;
+    
     void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-    GLuint compile_shader_source(GLenum type, const std::string& source);
-    std::string load_shader_from_file(const std::string& filename);
-    int create_texture(rp::tex_context tex_info);
+   
+    
   public:
     Renderer();
     Renderer(vec2 render_dims);
-    void enable_gl_debug();
+    void enable_gl_debug(void GLAPIENTRY (*MessageCallback)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar *, const void *));
     int create_shader_program(const char * vert_shader_path, const char * frag_shader_path);
-    int vertex_setup(float *vertices, uint8_t *indices);
+    int vertex_setup(float *vertices, unsigned int *indices);
+    int create_texture(rp::tex_context *tex_info, uint8_t *data);
+    void clear_render_surface();
+    void print_supported_extensions();
+    int update_surface(uint8_t *data);
+    int render_surface();
   };
   
 
   /* Implement uniform location automatic pickup, list the variable names and assign them in declared order. 
 
    */
-  
+   GLuint compile_shader_source(GLenum type, const std::string& source);
+   std::string load_shader_from_file(const std::string& filename);
 };
 #endif /*RENDER_PIPE_HPP*/

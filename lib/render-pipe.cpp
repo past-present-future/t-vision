@@ -1,4 +1,5 @@
 #include "../include/render-pipe.hpp"
+#include <GL/gl.h>
 #include <cstddef>
 #include <fstream>
 #include <bits/types/struct_timeval.h>
@@ -16,8 +17,21 @@
 #include <sys/poll.h>
 #include <time.h>
 
+void GLAPIENTRY
+MessageCallback_int( GLenum source,
+                 GLenum type,
+                 GLuint id,
+                 GLenum severity,
+                 GLsizei length,
+                 const GLchar* message,
+                 const void* userParam )
+{
+  fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+	   type, severity, message );
+}
 
-GLuint rp::Renderer::compile_shader_source(GLenum type, const std::string& source){
+GLuint rp::compile_shader_source(GLenum type, const std::string& source){
   GLuint shader = glCreateShader(type);
   const char* src = source.c_str();
   glShaderSource(shader, 1, &src, nullptr);
@@ -147,6 +161,7 @@ rp::Camera::~Camera(){
 }
 
 int rp::Renderer::create_shader_program(const char * vert_shader_path, const char * frag_shader_path){
+  GLint err = GL_NO_ERROR;
   std::string vertex_shader_src = load_shader_from_file(vert_shader_path);
   GLuint vert_shader = compile_shader_source(GL_VERTEX_SHADER, vertex_shader_src);
   if (vert_shader < 0)
@@ -157,14 +172,16 @@ int rp::Renderer::create_shader_program(const char * vert_shader_path, const cha
   if (frag_shader < 0)
     return 1;
 
-  GLuint shader_program = glCreateProgram();
-  glAttachShader(shader_program, vert_shader);
-  glAttachShader(shader_program, frag_shader);
-  glLinkProgram(shader_program);
+  this->shader_program = glCreateProgram();
+  glAttachShader(this->shader_program, vert_shader);
+  glAttachShader(this->shader_program, frag_shader);
+  glLinkProgram(this->shader_program);
 
   glDeleteShader(vert_shader);
   glDeleteShader(frag_shader);
-
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Gen program: %x\n", err );
+  }
   GLuint i;
   GLint count;
 
@@ -177,27 +194,30 @@ int rp::Renderer::create_shader_program(const char * vert_shader_path, const cha
 
   std::cout << "Shader program variables: \n\r";
 
-  glGetProgramiv(shader_program, GL_ACTIVE_ATTRIBUTES, &count);
-  std::cout << "Active attributes:\n";
+  glGetProgramiv(this->shader_program, GL_ACTIVE_ATTRIBUTES, &count);
+  std::cout << "Active attributes: " << count << std::endl;
 
-  for( i = count-1 ; i <= 0 ; --i)
+  for( i = count - 1; i != 0 - 1 ; --i)
     { 
       glGetActiveAttrib(shader_program, i, bufSize, &length, &size, &type, name);
-      std::cout << "\tAttribute #" << i << " \n\r\tType: " << type << "\n\r\t Name: "<< name << std::endl;
-    }
+      std::cout << "\tAttribute #" << i << " \n\r\tType: " << type << "\n\r\tName: "<< name << std::endl;
+      }
   glGetProgramiv(shader_program, GL_ACTIVE_UNIFORMS, &count);
   printf("Active Uniforms: %d\n", count);
 
-  for (i = 0; i < count; i++)
+  for (i = count - 1; i != 0 - 1; --i)
     {
       glGetActiveUniform(shader_program, (GLuint)i, bufSize, &length, &size, &type, name);
-
-      printf("Uniform #%d Type: %u Name: %s\n", i, type, name);
-    }
+      std::strncpy(this->tex_context_ary[i].uniform_name, name, length);
+      printf("Uniform #%d Type: %u Name: %s\n", i, type, this->tex_context_ary[i].uniform_name);
+      }
+  while((err = glGetError()) != GL_NO_ERROR){
+	printf("ERROR - Get Var info: %x\n", err );
+  }
   return 0;
 }
 
-std::string rp::Renderer::load_shader_from_file(const std::string& filename)
+std::string rp::load_shader_from_file(const std::string& filename)
 {
 	std::ifstream file(filename);
 	if(!file.is_open()){
@@ -209,13 +229,13 @@ std::string rp::Renderer::load_shader_from_file(const std::string& filename)
 	return buffer.str();
 }
 
-int rp::Renderer::vertex_setup(float *vertices, uint8_t *indices)
+int rp::Renderer::vertex_setup(float *vertices, unsigned int *indices)
 {
   GLenum err=GL_NO_ERROR;
   
   glGenVertexArrays(1, &(this->VAO));
   while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - VertexArray: %x\n", err );
+	printf("ERROR - GenVAO: %x\n", err );
   }
   
   glGenBuffers(1, &(this->VBO));
@@ -229,7 +249,7 @@ int rp::Renderer::vertex_setup(float *vertices, uint8_t *indices)
   }
   glBindVertexArray(this->VAO);
 
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
   
   
@@ -249,25 +269,140 @@ int rp::Renderer::vertex_setup(float *vertices, uint8_t *indices)
   while((err = glGetError()) != GL_NO_ERROR){
 	printf("ERROR - vertex attrib array: %x\n", err);
   }
+
+  return 0;
 }
 
-int rp::Renderer::create_texture(rp::tex_context tex_info)
+int rp::Renderer::create_texture(rp::tex_context *tex_info, uint8_t *data)
 {
-  GLuint active_tex, err=GL_NO_ERROR;
-  glGetIntegerv(GL_ACTIVE_TEXTURE, &active_tex);
-  if( active_tex != (GL_TEXTURE0 + this->texture_num))
-    glActiveTexture(GL_TEXTURE0 + this->texture_num);
-
-  glGenTextures(1, &(tex_info.id));
-   while((err = glGetError()) != GL_NO_ERROR){
-     printf("ERROR - Tex #%u gen_tex: %x\n", tex_info.id, err);
-	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
-  }
-  glBindTexture(GL_TEXTURE_2D, tex_info.id);
-  while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - Tex #%u bind: %x\n", tex_info.id, err);
-	fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
-  }
+  printf("INFO :: Dims (y:%zu,x:%zu)\n", tex_info->dims.x, tex_info->dims.y);
   
+  tex_context_ary[this->texture_num].data_type = tex_info->data_type;
+  tex_context_ary[this->texture_num].dims.x = tex_info->dims.x;
+  tex_context_ary[this->texture_num].dims.y = tex_info->dims.y;
+  tex_context_ary[this->texture_num].internal_format = tex_info->internal_format;
+  
+  GLint active_tex, err=GL_NO_ERROR;
+  glGetIntegerv(GL_ACTIVE_TEXTURE, &active_tex);
+  if( active_tex != (GL_TEXTURE0 + this->texture_num)) {
+      glActiveTexture(GL_TEXTURE0 + this->texture_num);
+      std::cout << "GL_TEXTURE" << active_tex << " already active\n";
+  }
+  else {
+    std::cout << "Didn't change texture for creation.\n";
+  }
+
+  glGenTextures(1, &(tex_info->id));
+  while((err = glGetError()) != GL_NO_ERROR){
+    printf("ERROR - Tex #%u gen_tex: %x\n", tex_info->id, err);
+    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  tex_context_ary[this->texture_num].id = tex_info->id;
+  glBindTexture(GL_TEXTURE_2D, tex_context_ary[this->texture_num].id);
+  while((err = glGetError()) != GL_NO_ERROR){
+    printf("ERROR - Tex #%u bind: %x\n", tex_context_ary[this->texture_num].id, err);
+    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+
+  // set the texture minimize/magnify parameters
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  while((err = glGetError()) != GL_NO_ERROR){
+    printf("ERROR - Tex0 tex_param_1: %x\n", err);
+    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  // set texture filtering parameters
+  while((err = glGetError()) != GL_NO_ERROR){
+    printf("ERROR - Tex0 tex_param_2: %x\n", err);
+    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glTexImage2D(GL_TEXTURE_2D, 0, tex_context_ary[this->texture_num].internal_format, tex_context_ary[this->texture_num].dims.x, tex_context_ary[this->texture_num].dims.y, 0, GL_RED,tex_context_ary[this->texture_num].data_type,  data);
+  while((err = glGetError()) != GL_NO_ERROR){
+    printf("ERROR - Tex0: %x\n", err);
+    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glGenerateMipmap(GL_TEXTURE_2D);
+
+  glUseProgram(this->shader_program);
+  glUniform1i(glGetUniformLocation(this->shader_program, this->tex_context_ary[texture_num].uniform_name), this->texture_num);
+  while((err = glGetError()) != GL_NO_ERROR){
+    std::cerr << "ERROR - Var linking: "<< err << std::endl;
+  }
+  printf("Created texture : #%zu,\n\r\tName: %s\n\r\t Dims(x:%zu, y:%zu)\n", this->texture_num, this->tex_context_ary[this->texture_num].uniform_name, this->tex_context_ary[this->texture_num].dims.x, this->tex_context_ary[this->texture_num].dims.y);
+   
+  this->texture_num++;
+  return err;
+}
+
+void rp::Renderer::print_supported_extensions()
+{
+  GLint n=0; 
+  glGetIntegerv(GL_NUM_EXTENSIONS, &n); 
+  PFNGLGETSTRINGIPROC glGetStringi = 0;
+  glGetStringi = (PFNGLGETSTRINGIPROC)glfwGetProcAddress("glGetStringi");
+  
+  std::cout << "Supported extensions: \n";
+  for (GLint i=0; i<n; i++) 
+  { 
+	const char* extension = 
+	  (const char*)glGetStringi(GL_EXTENSIONS, i);
+	std::cout << "     " << extension << std::endl;
+  } 
+}
+
+void rp::Renderer::enable_gl_debug(void GLAPIENTRY (*MessageCallback)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar *, const void *))
+{
+  glEnable(GL_DEBUG_OUTPUT);
+  glDebugMessageCallback( MessageCallback, 0 );
+}
+
+void rp::Renderer::clear_render_surface()
+{
+  GLint err=GL_NO_ERROR;
+  glClearColor(0.0f, 0.2f, 0.4f, 1.0);
+  //glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+  while((err = glGetError()) != GL_NO_ERROR){
+    printf("ERROR - glClearColor(): %x\n", err);
+    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  while((err = glGetError()) != GL_NO_ERROR){
+    printf("ERROR - glClear(): %x\n", err);
+    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }
+}
+
+int rp::Renderer::update_surface(uint8_t *data)
+{
+  size_t i = 0; 
+  tex_context *curr_tex = nullptr;
+  GLint active_tex;
+  
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  for( i = this->texture_num -1 ; i != 0 - 1; --i)
+    {
+      curr_tex = &(this->tex_context_ary[i]);
+      
+      glGetIntegerv(GL_ACTIVE_TEXTURE, &active_tex);
+      if( active_tex != (GL_TEXTURE0 + i))
+	glActiveTexture(GL_TEXTURE0 + i);
+      else
+	std::cout << "Didn't change texture.\n";
+
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, curr_tex->dims.x, curr_tex->dims.y, GL_RED, curr_tex->data_type, data);
+      data = data + (curr_tex->dims.x * curr_tex->dims.y);
+    }
   return 0;
+}
+
+int rp::Renderer::render_surface()
+{
+  GLint err = GL_NO_ERROR;
+  glUseProgram(this->shader_program);
+  glBindVertexArray(this->VAO);
+  glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+  while((err = glGetError()) != GL_NO_ERROR){
+    printf("ERROR - Draw command: %x\n", err);
+  }
+  return err;
 }

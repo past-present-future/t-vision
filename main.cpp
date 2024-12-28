@@ -1,3 +1,6 @@
+#include <cstdint>
+#include <cstdio>
+#include <ctime>
 #include <iostream>
 #include <ostream>
 #include <string>
@@ -26,8 +29,115 @@ MessageCallback( GLenum source,
            ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
 	   type, severity, message );
 }
+int render_api_test(void)
+{
+  if (!glfwInit())
+  {
+    std::cerr << "Failed to initialize GLFW" << std::endl;
+  }
 
-int main(void)
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  GLFWwindow* window = glfwCreateWindow(1280, 720, "OpenGL Shader Example", NULL, NULL);
+
+  if (!window)
+  {
+	std::cerr << "Failed to create GLFW window" << std::endl;
+	glfwTerminate();
+	return -1;
+  } 
+
+  glfwMakeContextCurrent(window); // Initialize GLEW
+  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  glewExperimental=true; // Needed in core profilexZx
+  if (glewInit() != GLEW_OK) {
+    fprintf(stderr, "Failed to initialize GLEW\n");
+    return -1;
+}
+
+  if (glfwGetPlatform() != GLFW_PLATFORM_WAYLAND) {
+	  std::cerr << "Warning: Not using Wayland" << std::endl;
+  } else {
+	  std::cout << "Using Wayland" << std::endl;
+  }
+
+  rp::vec2 dims{320,180};
+  rp::Camera cam("/dev/video0", dims);
+  cam.configure_buffers();
+
+  rp::Renderer yuv_streamer(dims);
+
+  yuv_streamer.enable_gl_debug(MessageCallback);
+  //yuv_streamer.print_supported_extensions();
+
+  yuv_streamer.create_shader_program("vertex.glsl", "fragment.glsl");
+  
+  float vertices[] =
+	{
+	// positions          // texture coords
+	0.5f,  0.5f, 0.0f,     1.0f, 0.0f,		// top right
+	0.5f, -0.5f, 0.0f,     1.0f, 1.0f,		// bottom right
+	-0.5f, -0.5f, 0.0f,    0.0f, 1.0f,		// bottom left
+	-0.5f,  0.5f, 0.0f,    0.0f, 0.0f		// top left  
+  };
+  unsigned int indices[] = {
+	0, 1, 3, // first triangle
+	1, 2, 3  // second triangle
+  };
+
+  yuv_streamer.vertex_setup(vertices, indices);
+
+  rp::tex_context y_tex{
+    0,
+    {dims.x, dims.y},
+    GL_RGBA,
+    GL_UNSIGNED_BYTE
+  };
+  rp::tex_context u_tex{
+    0,
+    {dims.x/2, dims.y/2},
+    GL_RGBA,
+    GL_UNSIGNED_BYTE
+  };
+  
+  rp::tex_context v_tex{
+    0,
+    {dims.x/2, dims.y/2},
+    GL_RGBA,
+     GL_UNSIGNED_BYTE
+  };
+  
+  cam.start_stream();
+  uint8_t *tmp=(uint8_t*)cam.get_frame();
+  printf("U Dims: (y:%zu,x:%zu)\n", u_tex.dims.x, u_tex.dims.y);
+  yuv_streamer.create_texture(&u_tex, tmp);
+  printf("V Dims: (y:%zu,x:%zu)\n", v_tex.dims.x, v_tex.dims.y);
+  yuv_streamer.create_texture(&v_tex, tmp + (dims.x*dims.y));
+  printf("Y Dims: (y:%zu,x:%zu)\n", y_tex.dims.x, y_tex.dims.y);
+  yuv_streamer.create_texture(&y_tex, tmp + (dims.x*dims.y) + (dims.x*dims.y)/4);
+  char c = '\0';
+  while(!glfwWindowShouldClose(window))
+    {
+      //c = std::getchar();
+      std::printf("tick\n");
+      tmp = (uint8_t*)cam.get_frame();
+      yuv_streamer.update_surface(tmp);
+      yuv_streamer.render_surface();
+      glfwSwapBuffers(window);
+      glfwPollEvents();
+      struct timespec ts {
+	0,
+	2000000000
+      };
+      nanosleep(&ts, nullptr);
+      yuv_streamer.clear_render_surface();
+    };
+  return 0;
+}
+int demo(void)
 {
   
   if (!glfwInit())
@@ -90,8 +200,8 @@ int main(void)
   glAttachShader(shader_program, frag_shader);
   glLinkProgram(shader_program);
 
-  glDeleteShader(vert_shader);
-  glDeleteShader(frag_shader);
+  //glDeleteShader(vert_shader);
+  //glDeleteShader(frag_shader);
  
   float vertices[] =
 	{
@@ -321,3 +431,9 @@ std::string load_shader_from_file(const std::string& filename)
 	return buffer.str();
 }
 
+int main(void)
+{
+  //demo();
+  render_api_test();
+  return 0;
+}
