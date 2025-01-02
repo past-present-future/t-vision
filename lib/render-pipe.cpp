@@ -457,7 +457,7 @@ void rp::Renderer::activate_program() {
  
   glUseProgram(this->shader_program);
   for (size_t i = 0; i < this->texture_num; ++i){
-    glUniform1i(glGetUniformLocation(this->shader_program, this->tex_context_ary[0].uniform_name), 0);
+    glUniform1i(glGetUniformLocation(this->shader_program, this->tex_context_ary[i].uniform_name), i);
     while((err = glGetError()) != GL_NO_ERROR){
       std::cerr << "ERROR - Var linking: "<< err << std::endl;
     }
