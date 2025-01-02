@@ -1,11 +1,11 @@
-#version 330 core
+#version 430 core
 out vec4 FragColor;
 
 in vec2 TexCoord;
 
-uniform sampler2D textureY;
-uniform sampler2D textureU;
-uniform sampler2D textureV;
+layout (location = 0) uniform sampler2D textureY;
+layout (location = 1) uniform sampler2D textureU;
+layout (location = 2) uniform sampler2D textureV;
 
 
 void main()
@@ -19,7 +19,7 @@ void main()
 	u=u-0.5;
 	v=v-0.5;
 
-	r=y+1.5958*v ;
+	r=y+1.5958*v;
 	g=y-0.39173*u-0.81290*v;
 	b=y+2.017*u;
 
