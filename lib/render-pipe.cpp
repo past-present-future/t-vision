@@ -137,8 +137,6 @@ int rp::Camera::start_stream(){
   if (ret < 0){
     ioctl(this->file_desc, VIDIOC_LOG_STATUS);
     std::cerr << "Could not start streaming, VIDIOC_STREAMON, error code: " << errno;
-	
-	
   }
   return ret; 
 }
@@ -248,11 +246,9 @@ int rp::Renderer::vertex_setup(float *vertices, unsigned int *indices, size_t ve
   }
   glBindVertexArray(this->VAO);
 
-  //printf("Vertices size: %zu\n", sizeof(vertices));
   glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
   glBufferData(GL_ARRAY_BUFFER, vertices_size, vertices, GL_STATIC_DRAW);
   
-  //printf("IndicesVertices size: %zu\n", sizeof(indices));
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, indices, GL_STATIC_DRAW);
   
@@ -374,13 +370,10 @@ void rp::Renderer::enable_gl_debug(void GLAPIENTRY (*MessageCallback)(GLenum, GL
 
 void rp::Renderer::clear_render_surface()
 {
-  GLint err=GL_NO_ERROR;
+  GLint err = GL_NO_ERROR;
+  
   glClearColor(0.0f, 0.2f, 0.4f, 1.0);
-  //glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-  while((err = glGetError()) != GL_NO_ERROR){
-    printf("ERROR - glClearColor(): %x\n", err);
-    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
-  }
+  
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   while((err = glGetError()) != GL_NO_ERROR){
     printf("ERROR - glClear(): %x\n", err);
@@ -392,12 +385,6 @@ int rp::Renderer::update_surface(uint8_t *data)
 {
   tex_context *curr_tex = nullptr;
   GLint active_tex = GL_TEXTURE0, err = GL_NO_ERROR;
-
-  uint8_t *temp[3] = {nullptr};
-  temp[0] = data;
-  temp[1] = temp[0] + 
-            (this->tex_context_ary[0].dims.x * this->tex_context_ary[0].dims.y);
-temp[2] = temp[1] + (this->tex_context_ary[1].dims.x * this->tex_context_ary[1].dims.y);  
   
   glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
   for( size_t i = 0 ; i < this->texture_num; ++i)
@@ -410,11 +397,9 @@ temp[2] = temp[1] + (this->tex_context_ary[1].dims.x * this->tex_context_ary[1].
       else
 	 std::cout << "Didn't change texture.\n";
 
-      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, curr_tex->dims.x, curr_tex->dims.y, GL_RED, curr_tex->data_type, temp[i]);
-      //data = data + (curr_tex->dims.x * curr_tex->dims.y);
-      // printf("Updated: #%zu. %s\n", i, curr_tex->uniform_name);
-      //printf("Updated texture : #%u,\n\r\tName: %s\n\r\tDims(x:%zu, y:%zu)\n", this->tex_context_ary[i].id, this->tex_context_ary[i].uniform_name, this->tex_context_ary[i].dims.x, this->tex_context_ary[i].dims.y);      
-    }
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, curr_tex->dims.x, curr_tex->dims.y, GL_RED, curr_tex->data_type, data);
+      data = data + (curr_tex->dims.x * curr_tex->dims.y);
+      }
   while((err = glGetError()) != GL_NO_ERROR){
     printf("ERROR - glClear(): %x\n", err);
     fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
