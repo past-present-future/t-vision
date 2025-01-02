@@ -386,7 +386,7 @@ int rp::Renderer::update_surface(uint8_t *data)
   tex_context *curr_tex = nullptr;
   GLint active_tex = GL_TEXTURE0, err = GL_NO_ERROR;
   
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   for( size_t i = 0 ; i < this->texture_num; ++i)
     {
       curr_tex = &(this->tex_context_ary[i]);
