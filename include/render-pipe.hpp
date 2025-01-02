@@ -12,8 +12,9 @@
 
 #include <linux/videodev2.h>
 #include <iostream>
-namespace rp
-{
+namespace rp {
+
+  
   typedef struct vec2Type
   {
 	size_t x;
@@ -26,13 +27,13 @@ namespace rp
     vec2 dims = {0,0};
     GLuint internal_format = GL_RGBA;
     GLuint data_type = GL_UNSIGNED_BYTE;
-    char uniform_name[16]="";
+    char uniform_name[32]="";
   }tex_context;
 
   typedef struct frame_bufferType {
 	struct v4l2_requestbuffers req = {0};
 	struct v4l2_buffer buffer = {0};
-	void *frame_data;
+	uint8_t *frame_data;
   } frame_buffer;
 
   class Camera{
@@ -46,7 +47,7 @@ namespace rp
 	Camera(const char* cam_path, vec2 dims);
 	int configure_buffers();
 	int start_stream();
-	void* get_frame();
+	uint8_t* get_frame();
 	~Camera();
   };
 
@@ -66,11 +67,13 @@ namespace rp
     Renderer(vec2 render_dims);
     void enable_gl_debug(void GLAPIENTRY (*MessageCallback)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar *, const void *));
     int create_shader_program(const char * vert_shader_path, const char * frag_shader_path);
-    int vertex_setup(float *vertices, unsigned int *indices);
+    int vertex_setup(float *vertices, unsigned int *indices, size_t vertices_size, size_t indices_size);
     int create_texture(rp::tex_context *tex_info, uint8_t *data);
     void clear_render_surface();
     void print_supported_extensions();
+    void print_uniform_info();
     int update_surface(uint8_t *data);
+    void activate_program();
     int render_surface();
   };
   

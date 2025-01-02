@@ -17,20 +17,30 @@
 #include <sys/poll.h>
 #include <time.h>
 
-void GLAPIENTRY
-MessageCallback_int( GLenum source,
-                 GLenum type,
-                 GLuint id,
-                 GLenum severity,
-                 GLsizei length,
-                 const GLchar* message,
-                 const void* userParam )
-{
+
+void GLAPIENTRY MessageCallback_int(GLenum source, GLenum type, GLuint id,
+                                    GLenum severity, GLsizei length,
+                                    const GLchar *message,
+                                    const void *userParam) {
+if  (severity != GL_DEBUG_SEVERITY_NOTIFICATION)  
   fprintf( stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
-           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+           ( (type == GL_DEBUG_TYPE_ERROR) ? "** GL ERROR **" : "" ),
 	   type, severity, message );
 }
 
+float default_vertices[] =
+  {
+    // positions          // texture coords
+    0.5f,  0.5f, 0.0f,     1.0f, 0.0f,		// top right
+    0.5f, -0.5f, 0.0f,     1.0f, 1.0f,		// bottom right
+    -0.5f, -0.5f, 0.0f,    0.0f, 1.0f,		// bottom left
+    -0.5f,  0.5f, 0.0f,    0.0f, 0.0f		// top left  
+  };
+unsigned int default_indices[] = {
+  0, 1, 3, // first triangle
+  1, 2, 3  // second triangle
+};
+  
 GLuint rp::compile_shader_source(GLenum type, const std::string& source){
   GLuint shader = glCreateShader(type);
   const char* src = source.c_str();
@@ -40,24 +50,23 @@ GLuint rp::compile_shader_source(GLenum type, const std::string& source){
   GLint ret;
   glGetShaderiv(shader, GL_COMPILE_STATUS, &ret);
   if(!ret){
-	GLchar info_log[512];
-	glGetShaderInfoLog(shader, sizeof(info_log), nullptr, info_log);
-	std::cerr << "Shader compilation failed:\n" << info_log << std::endl;
-	glDeleteShader(shader);
-	return 0;
+    GLchar info_log[512];
+    glGetShaderInfoLog(shader, sizeof(info_log), nullptr, info_log);
+    std::cerr << "Shader compilation failed:\n" << info_log << std::endl;
+    glDeleteShader(shader);
+    return 0;
   }
   return shader;
 }
-rp::Renderer::Renderer(rp::vec2 dims) : texture_num((size_t)0), tex_context_ary{}, viewport_dims(dims) {}
-
+rp::Renderer::Renderer(rp::vec2 dims) : texture_num((size_t)0), tex_context_ary{0}, viewport_dims{dims.x, dims.y} {}
 
 rp::Camera::Camera(){
   this->file_desc = open("/dev/video0", O_RDWR);
   if(this->file_desc < 0){
-	perror("Failed to open device, OPEN");
+    perror("Failed to open device, OPEN");
   }
   if( ioctl(this->file_desc, VIDIOC_QUERYCAP, &(this->caps)) < 0){
-	perror("Failed to get device capabilities, VIDIOC_QUERYCAP");
+    perror("Failed to get device capabilities, VIDIOC_QUERYCAP");
   }
   
   this->fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
@@ -67,20 +76,20 @@ rp::Camera::Camera(){
   this->fmt.fmt.pix.field = V4L2_FIELD_NONE;
 
   if( ioctl(this->file_desc, VIDIOC_S_FMT, &(this->fmt)) < 0 ){
-	perror("Device could not set format, VIDIOC_S_FMT");
+    perror("Device could not set format, VIDIOC_S_FMT");
   }
 }
 
 rp::Camera::Camera(const char* cam_path, vec2 dims){
   this->file_desc = open(cam_path, O_RDWR);
   if(this->file_desc < 0){
-	perror("Failed to open device, OPEN");
+    perror("Failed to open device, OPEN");
   }
   if( ioctl(this->file_desc, VIDIOC_QUERYCAP, &(this->caps)) < 0){
-	perror("Failed to get device capabilities, VIDIOC_QUERYCAP");
+    perror("Failed to get device capabilities, VIDIOC_QUERYCAP");
   }
   else {
-     printf("Caps reported got: %x\n", this->caps.capabilities);
+    printf("Caps reported got: %x\n", this->caps.capabilities);
   }
    	
   this->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -90,12 +99,12 @@ rp::Camera::Camera(const char* cam_path, vec2 dims){
   this->fmt.fmt.pix.field = V4L2_FIELD_NONE;
 
   if( ioctl(this->file_desc, VIDIOC_G_FMT, &(this->fmt)) < 0){
-	perror("Device could not get format, VIDIOC_S_FMT");
+    perror("Device could not get format, VIDIOC_S_FMT");
   }
   else{
     dims.x = this->fmt.fmt.pix.width;
     dims.y= this->fmt.fmt.pix.height;
-    printf("Dims got x: %d, y: %d\n\rFormat got: %x\n", dims.x, dims.y, this->fmt.fmt.pix.pixelformat);
+    printf("Dims got x: %zu, y: %zu\n\rFormat got: %x\n", dims.x, dims.y, this->fmt.fmt.pix.pixelformat);
   }
 }
 
@@ -105,19 +114,19 @@ int rp::Camera::configure_buffers(){
   this->frame_handle.req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   this->frame_handle.req.memory = V4L2_MEMORY_MMAP;
   if(ioctl(this->file_desc, VIDIOC_REQBUFS, &(this->frame_handle.req)) < 0){
-	perror("Could not request buffer from device, VIDIOC_REQBUFS");
-	return 1;
+    perror("Could not request buffer from device, VIDIOC_REQBUFS");
+    return 1;
   }
   
   this->frame_handle.buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   this->frame_handle.buffer.memory = V4L2_MEMORY_MMAP;
   this->frame_handle.buffer.index = 0;
   if(ioctl(this->file_desc, VIDIOC_QUERYBUF, &(this->frame_handle.buffer)) < 0){
-	perror("Could not request buffer from device, VIDIOC_QUERYBUF");
+    perror("Could not request buffer from device, VIDIOC_QUERYBUF");
     return 1;
   }
 
-  this->frame_handle.frame_data = mmap(nullptr, this->frame_handle.buffer.length, PROT_READ | PROT_WRITE, MAP_SHARED, this->file_desc, this->frame_handle.buffer.m.offset);
+  this->frame_handle.frame_data = (uint8_t*)mmap(nullptr, this->frame_handle.buffer.length, PROT_READ | PROT_WRITE, MAP_SHARED, this->file_desc, this->frame_handle.buffer.m.offset);
   
   return 0;
 }
@@ -126,31 +135,31 @@ int rp::Camera::start_stream(){
   int ret;
   ret = ioctl(this->file_desc, VIDIOC_STREAMON, &(this->frame_handle.buffer.type));
   if (ret < 0){
-	ioctl(this->file_desc, VIDIOC_LOG_STATUS);
-	std::cerr << "Could not start streaming, VIDIOC_STREAMON ,error code: " << errno;
+    ioctl(this->file_desc, VIDIOC_LOG_STATUS);
+    std::cerr << "Could not start streaming, VIDIOC_STREAMON, error code: " << errno;
 	
 	
   }
   return ret; 
 }
 
-void* rp::Camera::get_frame(){
+uint8_t* rp::Camera::get_frame(){
   struct timeval tv;
   int ret=0;
   
   ret = ioctl(this->file_desc, VIDIOC_QBUF, &(this->frame_handle.buffer));
-   if (ret < 0){
-	ioctl(this->file_desc, VIDIOC_LOG_STATUS);
-	std::cerr << "Could not queue buffer: " << errno << std::endl;
+  if (ret < 0){
+    ioctl(this->file_desc, VIDIOC_LOG_STATUS);
+    std::cerr << "Could not queue buffer: " << errno << std::endl;
   }
   struct timespec ts;
   ts.tv_sec = 0;
   ts.tv_nsec = 16000;
   nanosleep(&ts, nullptr);
   ret = ioctl(this->file_desc, VIDIOC_DQBUF, &(this->frame_handle.buffer));
-   if (ret < 0){
-	ioctl(this->file_desc, VIDIOC_LOG_STATUS);
-	std::cerr << "Could not return buffer: " << errno << std::endl;
+  if (ret < 0){
+    ioctl(this->file_desc, VIDIOC_LOG_STATUS);
+    std::cerr << "Could not return buffer: " << errno << std::endl;
   }
   return this->frame_handle.frame_data;
 }
@@ -180,7 +189,7 @@ int rp::Renderer::create_shader_program(const char * vert_shader_path, const cha
   glDeleteShader(vert_shader);
   glDeleteShader(frag_shader);
   while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - Gen program: %x\n", err );
+    printf("ERROR - Gen program: %x\n", err );
   }
   GLuint i;
   GLint count;
@@ -188,7 +197,7 @@ int rp::Renderer::create_shader_program(const char * vert_shader_path, const cha
   GLint size; // size of the variable
   GLenum type; // type of the variable (float, vec3 or mat4, etc)
 
-  const GLsizei bufSize = 16; // maximum name length
+  const GLsizei bufSize = 32; // maximum name length
   GLchar name[bufSize]; // variable name in GLSL
   GLsizei length; // name length
 
@@ -197,67 +206,58 @@ int rp::Renderer::create_shader_program(const char * vert_shader_path, const cha
   glGetProgramiv(this->shader_program, GL_ACTIVE_ATTRIBUTES, &count);
   std::cout << "Active attributes: " << count << std::endl;
 
-  for( i = count - 1; i != 0 - 1 ; --i)
+  for( i = 0; i < count ; ++i)
     { 
       glGetActiveAttrib(shader_program, i, bufSize, &length, &size, &type, name);
       std::cout << "\tAttribute #" << i << " \n\r\tType: " << type << "\n\r\tName: "<< name << std::endl;
-      }
-  glGetProgramiv(shader_program, GL_ACTIVE_UNIFORMS, &count);
-  printf("Active Uniforms: %d\n", count);
+    }
 
-  for (i = count - 1; i != 0 - 1; --i)
-    {
-      glGetActiveUniform(shader_program, (GLuint)i, bufSize, &length, &size, &type, name);
-      std::strncpy(this->tex_context_ary[i].uniform_name, name, length);
-      printf("Uniform #%d Type: %u Name: %s\n", i, type, this->tex_context_ary[i].uniform_name);
-      }
-  while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - Get Var info: %x\n", err );
-  }
+ 
   return 0;
 }
 
 std::string rp::load_shader_from_file(const std::string& filename)
 {
-	std::ifstream file(filename);
-	if(!file.is_open()){
-		std::cerr << "Failed to open file: " << filename << std::endl;
-		return "";
-	}
-	std::stringstream buffer;
-	buffer << file.rdbuf();
-	return buffer.str();
+  std::ifstream file(filename);
+  if(!file.is_open()){
+    std::cerr << "Failed to open file: " << filename << std::endl;
+    return "";
+  }
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
 }
 
-int rp::Renderer::vertex_setup(float *vertices, unsigned int *indices)
+int rp::Renderer::vertex_setup(float *vertices, unsigned int *indices, size_t vertices_size, size_t indices_size)
 {
   GLenum err=GL_NO_ERROR;
   
   glGenVertexArrays(1, &(this->VAO));
   while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - GenVAO: %x\n", err );
+    printf("ERROR - GenVAO: %x\n", err );
   }
   
   glGenBuffers(1, &(this->VBO));
   while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - GenVBO: %x\n", err);
+    printf("ERROR - GenVBO: %x\n", err);
   }
 
   glGenBuffers(1, &(this->EBO));
   while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - GenEBO: %x\n", err );
+    printf("ERROR - GenEBO: %x\n", err );
   }
   glBindVertexArray(this->VAO);
 
+  //printf("Vertices size: %zu\n", sizeof(vertices));
   glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, vertices_size, vertices, GL_STATIC_DRAW);
   
-  
+  //printf("IndicesVertices size: %zu\n", sizeof(indices));
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices_size, indices, GL_STATIC_DRAW);
   
   while((err = glGetError()) != GL_NO_ERROR){
-	  std::cerr << "ERROR - BindBuffers: %d"<< err << std::endl;
+    std::cerr << "ERROR - BindBuffers: %d"<< err << std::endl;
   }
 
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
@@ -267,7 +267,7 @@ int rp::Renderer::vertex_setup(float *vertices, unsigned int *indices)
   glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
   while((err = glGetError()) != GL_NO_ERROR){
-	printf("ERROR - vertex attrib array: %x\n", err);
+    printf("ERROR - vertex attrib array: %x\n", err);
   }
 
   return 0;
@@ -275,60 +275,76 @@ int rp::Renderer::vertex_setup(float *vertices, unsigned int *indices)
 
 int rp::Renderer::create_texture(rp::tex_context *tex_info, uint8_t *data)
 {
-  printf("INFO :: Dims (y:%zu,x:%zu)\n", tex_info->dims.x, tex_info->dims.y);
-  
-  tex_context_ary[this->texture_num].data_type = tex_info->data_type;
-  tex_context_ary[this->texture_num].dims.x = tex_info->dims.x;
-  tex_context_ary[this->texture_num].dims.y = tex_info->dims.y;
-  tex_context_ary[this->texture_num].internal_format = tex_info->internal_format;
-  
-  GLint active_tex, err=GL_NO_ERROR;
+  GLint active_tex = 0, err=GL_NO_ERROR;
   glGetIntegerv(GL_ACTIVE_TEXTURE, &active_tex);
+  
   if( active_tex != (GL_TEXTURE0 + this->texture_num)) {
-      glActiveTexture(GL_TEXTURE0 + this->texture_num);
-      std::cout << "GL_TEXTURE" << active_tex << " already active\n";
+    glActiveTexture(GL_TEXTURE0 + this->texture_num);
+    std::cout << "GL_TEXTURE" << this->texture_num << " activated\n";
   }
   else {
-    std::cout << "Didn't change texture for creation.\n";
+    std::cout << "Didn't change texture for creation." << " GL_TEXTURE"
+              << this->texture_num << " already active\n";
   }
 
   glGenTextures(1, &(tex_info->id));
   while((err = glGetError()) != GL_NO_ERROR){
-    printf("ERROR - Tex #%u gen_tex: %x\n", tex_info->id, err);
+    printf("ERROR - Tex #%zu gen_tex: %x\n", this->texture_num, err);
     fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
-  tex_context_ary[this->texture_num].id = tex_info->id;
-  glBindTexture(GL_TEXTURE_2D, tex_context_ary[this->texture_num].id);
+  //tex_context_ary[this->texture_num].id = tex_info->id;
+  glBindTexture(GL_TEXTURE_2D, tex_info->id);
   while((err = glGetError()) != GL_NO_ERROR){
-    printf("ERROR - Tex #%u bind: %x\n", tex_context_ary[this->texture_num].id, err);
+    printf("ERROR - Tex #%u bind: %x\n", tex_info->id, err);
     fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
 
   // set the texture minimize/magnify parameters
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   while((err = glGetError()) != GL_NO_ERROR){
-    printf("ERROR - Tex0 tex_param_1: %x\n", err);
+    printf("ERROR - Tex%zu tex_param_1: %x\n", this->texture_num, err);
     fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   // set texture filtering parameters
   while((err = glGetError()) != GL_NO_ERROR){
-    printf("ERROR - Tex0 tex_param_2: %x\n", err);
+    printf("ERROR - Tex%zu tex_param_2: %x\n", this->texture_num, err);
     fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
-  glTexImage2D(GL_TEXTURE_2D, 0, tex_context_ary[this->texture_num].internal_format, tex_context_ary[this->texture_num].dims.x, tex_context_ary[this->texture_num].dims.y, 0, GL_RED,tex_context_ary[this->texture_num].data_type,  data);
+  glTexImage2D(GL_TEXTURE_2D, 0, tex_info->internal_format, tex_info->dims.x, tex_info->dims.y, 0, GL_RED, tex_info->data_type,  data);
   while((err = glGetError()) != GL_NO_ERROR){
-    printf("ERROR - Tex0: %x\n", err);
+    printf("ERROR - Tex%zu: %x\n", this->texture_num, err);
     fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
   }
   glGenerateMipmap(GL_TEXTURE_2D);
 
-  glUseProgram(this->shader_program);
-  glUniform1i(glGetUniformLocation(this->shader_program, this->tex_context_ary[texture_num].uniform_name), this->texture_num);
-  while((err = glGetError()) != GL_NO_ERROR){
-    std::cerr << "ERROR - Var linking: "<< err << std::endl;
-  }
-  printf("Created texture : #%zu,\n\r\tName: %s\n\r\t Dims(x:%zu, y:%zu)\n", this->texture_num, this->tex_context_ary[this->texture_num].uniform_name, this->tex_context_ary[this->texture_num].dims.x, this->tex_context_ary[this->texture_num].dims.y);
+  //glUseProgram(this->shader_program);
+
+  tex_context_ary[this->texture_num].id = tex_info->id;
+  tex_context_ary[this->texture_num].data_type = tex_info->data_type;
+  tex_context_ary[this->texture_num].dims.x = tex_info->dims.x;
+  tex_context_ary[this->texture_num].dims.y = tex_info->dims.y;
+  tex_context_ary[this->texture_num].internal_format =
+    tex_info->internal_format;
+
+  /* GLsizei length;
+     GLint size, count;
+     GLenum type;
+     GLchar name[32];
+
+     glGetProgramiv(shader_program, GL_ACTIVE_UNIFORMS, &count);
+     glGetActiveUniform(shader_program, (GLuint) this->texture_num , 32, &length,
+     &size, &type, name);
+     std::strncpy(this->tex_context_ary[this->texture_num].uniform_name, name,
+     length); printf("Uniform #%zu Type: %u Name: %s\n", this->texture_num, type,
+     this->tex_context_ary[this->texture_num].uniform_name);
+
+     while((err = glGetError()) != GL_NO_ERROR){
+     printf("ERROR - Get Var info: %x\n", err);
+     }   */
+  std::strncpy(this->tex_context_ary[this->texture_num].uniform_name, tex_info->uniform_name, strlen(tex_info->uniform_name));  
+ 
+  printf("Created texture : #%u,\n\r\tName: %s\n\r\t Dims(x:%zu, y:%zu)\n", this->tex_context_ary[this->texture_num].id, this->tex_context_ary[this->texture_num].uniform_name, this->tex_context_ary[this->texture_num].dims.x, this->tex_context_ary[this->texture_num].dims.y);
    
   this->texture_num++;
   return err;
@@ -343,11 +359,11 @@ void rp::Renderer::print_supported_extensions()
   
   std::cout << "Supported extensions: \n";
   for (GLint i=0; i<n; i++) 
-  { 
-	const char* extension = 
-	  (const char*)glGetStringi(GL_EXTENSIONS, i);
-	std::cout << "     " << extension << std::endl;
-  } 
+    { 
+      const char* extension = 
+	(const char*)glGetStringi(GL_EXTENSIONS, i);
+      std::cout << "     " << extension << std::endl;
+    } 
 }
 
 void rp::Renderer::enable_gl_debug(void GLAPIENTRY (*MessageCallback)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar *, const void *))
@@ -374,12 +390,17 @@ void rp::Renderer::clear_render_surface()
 
 int rp::Renderer::update_surface(uint8_t *data)
 {
-  size_t i = 0; 
   tex_context *curr_tex = nullptr;
-  GLint active_tex;
+  GLint active_tex = GL_TEXTURE0, err = GL_NO_ERROR;
+
+  uint8_t *temp[3] = {nullptr};
+  temp[0] = data;
+  temp[1] = temp[0] + 
+            (this->tex_context_ary[0].dims.x * this->tex_context_ary[0].dims.y);
+temp[2] = temp[1] + (this->tex_context_ary[1].dims.x * this->tex_context_ary[1].dims.y);  
   
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  for( i = this->texture_num -1 ; i != 0 - 1; --i)
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+  for( size_t i = 0 ; i < this->texture_num; ++i)
     {
       curr_tex = &(this->tex_context_ary[i]);
       
@@ -387,11 +408,17 @@ int rp::Renderer::update_surface(uint8_t *data)
       if( active_tex != (GL_TEXTURE0 + i))
 	glActiveTexture(GL_TEXTURE0 + i);
       else
-	std::cout << "Didn't change texture.\n";
+	 std::cout << "Didn't change texture.\n";
 
-      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, curr_tex->dims.x, curr_tex->dims.y, GL_RED, curr_tex->data_type, data);
-      data = data + (curr_tex->dims.x * curr_tex->dims.y);
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, curr_tex->dims.x, curr_tex->dims.y, GL_RED, curr_tex->data_type, temp[i]);
+      //data = data + (curr_tex->dims.x * curr_tex->dims.y);
+      // printf("Updated: #%zu. %s\n", i, curr_tex->uniform_name);
+      //printf("Updated texture : #%u,\n\r\tName: %s\n\r\tDims(x:%zu, y:%zu)\n", this->tex_context_ary[i].id, this->tex_context_ary[i].uniform_name, this->tex_context_ary[i].dims.x, this->tex_context_ary[i].dims.y);      
     }
+  while((err = glGetError()) != GL_NO_ERROR){
+    printf("ERROR - glClear(): %x\n", err);
+    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }  
   return 0;
 }
 
@@ -406,3 +433,33 @@ int rp::Renderer::render_surface()
   }
   return err;
 }
+
+void rp::Renderer::print_uniform_info()
+{
+  GLsizei length;
+  GLint size, count;
+  GLenum type;
+  GLchar name[32];
+
+  glGetProgramiv(shader_program, GL_ACTIVE_UNIFORMS, &count);
+
+  for (size_t i = 0; i < count; ++i) {
+    glGetActiveUniform(shader_program, i, 32, &length,
+		       &size, &type, name);  
+    //std::strncpy(this->tex_context_ary[this->texture_num].uniform_name, name, length);
+    printf("Uniform #%zu Type: %u Name: %s\n", i, type, name);
+  }  
+}
+
+void rp::Renderer::activate_program() {
+
+  GLint err=GL_NO_ERROR;
+ 
+  glUseProgram(this->shader_program);
+  for (size_t i = 0; i < this->texture_num; ++i){
+    glUniform1i(glGetUniformLocation(this->shader_program, this->tex_context_ary[0].uniform_name), 0);
+    while((err = glGetError()) != GL_NO_ERROR){
+      std::cerr << "ERROR - Var linking: "<< err << std::endl;
+    }
+  } 
+}    
