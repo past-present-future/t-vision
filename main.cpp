@@ -24,6 +24,124 @@ if  (severity != GL_DEBUG_SEVERITY_NOTIFICATION)
            ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
 	   type, severity, message );
 }
+int shader_playground(void)
+{
+  if (!glfwInit())
+  {
+    std::cerr << "Failed to initialize GLFW" << std::endl;
+  }
+
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  GLFWwindow* window = glfwCreateWindow(1280, 720, "OpenGL Shader Example", NULL, NULL);
+
+  if (!window)
+  {
+	std::cerr << "Failed to create GLFW window" << std::endl;
+	glfwTerminate();
+	return -1;
+  } 
+
+  glfwMakeContextCurrent(window); // Initialize GLEW
+  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  glewExperimental=true; // Needed in core profilexZx
+  if (glewInit() != GLEW_OK) {
+    fprintf(stderr, "Failed to initialize GLEW\n");
+    return -1;
+}
+
+  if (glfwGetPlatform() != GLFW_PLATFORM_WAYLAND) {
+	  std::cerr << "Warning: Not using Wayland" << std::endl;
+  } else {
+	  std::cout << "Using Wayland" << std::endl;
+  }
+
+  rp::vec2 dims{320,180};
+  rp::Camera cam("/dev/video0", dims);
+  cam.configure_buffers();
+
+  rp::Renderer yuv_streamer(dims);
+
+  yuv_streamer.enable_gl_debug(MessageCallback);
+  //yuv_streamer.print_supported_extensions();
+
+  yuv_streamer.create_shader_program("shaders/vertex.glsl", "shaders/change_detection.frag");
+  
+  float vertices[] =
+	{
+	// positions          // texture coords
+	0.5f,  0.5f, 0.0f,     1.0f, 0.0f,		// top right
+	0.5f, -0.5f, 0.0f,     1.0f, 1.0f,		// bottom right
+	-0.5f, -0.5f, 0.0f,    0.0f, 1.0f,		// bottom left
+	-0.5f,  0.5f, 0.0f,    0.0f, 0.0f		// top left  
+  };
+  unsigned int indices[] = {
+	0, 1, 3, // first triangle
+	1, 2, 3  // second triangle
+  };
+
+  yuv_streamer.vertex_setup(vertices, indices, sizeof(vertices), sizeof(indices));
+
+  rp::tex_context y_tex{
+    0, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
+    "textureY", 1
+  };
+  
+  rp::tex_context u_tex{
+    1, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
+    "textureU", 1     
+  };
+
+  rp::tex_context v_tex{
+    2, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
+    "textureV", 1
+  };
+ 
+  rp::tex_context freeze_tex{
+    2, {dims.x, dims.y}, GL_RGB, GL_RGBA, GL_UNSIGNED_BYTE,
+    "freeze_texture", 0
+  }; 
+  
+  cam.start_stream();
+  uint8_t *tmp=(uint8_t*)cam.get_frame();
+  printf("\nY Dims: (y:%zu,x:%zu)\n", y_tex.dims.x, y_tex.dims.y);
+  yuv_streamer.create_texture(&y_tex, tmp);
+  printf("U Dims: (y:%zu,x:%zu)\n", u_tex.dims.x, u_tex.dims.y);
+  yuv_streamer.create_texture(&u_tex, tmp + (dims.x*dims.y));
+  printf("V Dims: (y:%zu,x:%zu)\n", v_tex.dims.x, v_tex.dims.y);
+  yuv_streamer.create_texture(&v_tex,
+                              tmp + (dims.x * dims.y) + (dims.x * dims.y) / 4);
+ uint8_t *still_frame_data = (uint8_t*)calloc(dims.x * dims.y*3, sizeof(uint8_t));
+ printf("Freeze Dims: (y:%zu,x:%zu)\n", freeze_tex.dims.x, freeze_tex.dims.y);
+
+ rp::yuv2rgb(tmp, still_frame_data, dims); 
+ 
+ yuv_streamer.create_texture(&freeze_tex, still_frame_data);  
+  
+  //yuv_streamer.print_uniform_info();
+  yuv_streamer.activate_program();
+  char c = '\0';
+  while(!glfwWindowShouldClose(window))
+    {
+      //c = std::getchar();
+      //std::printf("tick\n");
+      tmp = (uint8_t*)cam.get_frame();
+      yuv_streamer.update_surface(tmp);
+      yuv_streamer.render_surface();
+      glfwSwapBuffers(window);
+      glfwPollEvents();
+      /*struct timespec ts {
+	0,
+	2000000000
+      };
+      nanosleep(&ts, nullptr);*/
+      //yuv_streamer.clear_render_surface();
+    };
+  return 0;
+}
 int render_api_test(void)
 {
   if (!glfwInit())
@@ -86,16 +204,17 @@ int render_api_test(void)
   yuv_streamer.vertex_setup(vertices, indices, sizeof(vertices), sizeof(indices));
 
   rp::tex_context y_tex{
-    0, {dims.x, dims.y}, GL_RGBA, GL_UNSIGNED_BYTE,
-    "textureY"        
-  };
- rp::tex_context u_tex{
-    1, {dims.x / 2, dims.y / 2}, GL_RGBA, GL_UNSIGNED_BYTE,
-    "textureU"        
+    0, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
+    "textureY"
   };
   
+  rp::tex_context u_tex{
+    1, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
+    "textureU"        
+  };
+
   rp::tex_context v_tex{
-    2, {dims.x / 2, dims.y / 2}, GL_RGBA, GL_UNSIGNED_BYTE,
+    2, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
     "textureV"
   };
   
@@ -428,7 +547,8 @@ std::string load_shader_from_file(const std::string& filename)
 
 int main(void)
 {
-  //demo();
-  render_api_test();
+  // demo();
+  shader_playground();
+  //render_api_test();
   return 0;
 }

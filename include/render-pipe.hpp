@@ -26,8 +26,10 @@ namespace rp {
     GLuint id = 0;
     vec2 dims = {0,0};
     GLuint internal_format = GL_RGBA;
+    GLuint update_format = GL_RED;
     GLuint data_type = GL_UNSIGNED_BYTE;
-    char uniform_name[32]="";
+    char uniform_name[32] = "";
+    uint8_t skip_bool = 0;    
   }tex_context;
 
   typedef struct frame_bufferType {
@@ -81,7 +83,8 @@ namespace rp {
   /* Implement uniform location automatic pickup, list the variable names and assign them in declared order. 
 
    */
-   GLuint compile_shader_source(GLenum type, const std::string& source);
-   std::string load_shader_from_file(const std::string& filename);
+  GLuint compile_shader_source(GLenum type, const std::string& source);
+  std::string load_shader_from_file(const std::string &filename);
+  int yuv2rgb(uint8_t *in, uint8_t *out, vec2 dims);
 };
 #endif /*RENDER_PIPE_HPP*/
