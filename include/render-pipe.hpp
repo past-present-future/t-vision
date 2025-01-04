@@ -77,6 +77,7 @@ namespace rp {
     int update_surface(uint8_t *data);
     void activate_program();
     int render_surface();
+    int update_surface_skipped(uint8_t *data);
   };
   
 

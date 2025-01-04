@@ -321,7 +321,8 @@ int rp::Renderer::create_texture(rp::tex_context *tex_info, uint8_t *data)
   tex_context_ary[this->texture_num].dims.x = tex_info->dims.x;
   tex_context_ary[this->texture_num].dims.y = tex_info->dims.y;
   tex_context_ary[this->texture_num].internal_format =
-    tex_info->internal_format;
+      tex_info->internal_format;
+  tex_context_ary[this->texture_num].skip_bool = tex_info->skip_bool;
 
   /* GLsizei length;
      GLint size, count;
@@ -478,4 +479,37 @@ int rp::yuv2rgb(uint8_t *in, uint8_t *out, vec2 dims)
   }    
 
   return 0;
-}    
+}
+
+int rp::Renderer::update_surface_skipped(uint8_t *data)
+{
+  tex_context *curr_tex = nullptr;
+  GLint active_tex = GL_TEXTURE0, err = GL_NO_ERROR;
+  
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  for( size_t i = 0 ; i < this->texture_num; ++i)
+    {
+      curr_tex = &(this->tex_context_ary[i]);
+      if (!(curr_tex->skip_bool)) {
+       
+	
+       continue;
+      } 
+      glGetIntegerv(GL_ACTIVE_TEXTURE, &active_tex);
+      if( active_tex != (GL_TEXTURE0 + i))
+	glActiveTexture(GL_TEXTURE0 + i);
+      else
+	 std::cout << "Didn't change texture.\n";
+
+      glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, curr_tex->dims.x,
+                      curr_tex->dims.y, curr_tex->internal_format,
+                      curr_tex->data_type, data);
+      printf("Updated skipped texture, %u :: %s :: %u\n", curr_tex->id, curr_tex->uniform_name, curr_tex->skip_bool);      
+      data = data + (curr_tex->dims.x * curr_tex->dims.y);
+      }
+  while((err = glGetError()) != GL_NO_ERROR){
+    printf("ERROR - glClear(): %x\n", err);
+    fprintf(stderr, "OpenGL error: %s\n", gluErrorString(err));
+  }  
+  return 0;
+}

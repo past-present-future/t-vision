@@ -86,23 +86,21 @@ int shader_playground(void)
   yuv_streamer.vertex_setup(vertices, indices, sizeof(vertices), sizeof(indices));
 
   rp::tex_context y_tex{
-    0, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
-    "textureY", 1
-  };
+      0, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureY", 0};
   
   rp::tex_context u_tex{
     1, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
-    "textureU", 1     
+    "textureU", 0     
   };
 
   rp::tex_context v_tex{
     2, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
-    "textureV", 1
+    "textureV", 0
   };
  
   rp::tex_context freeze_tex{
     2, {dims.x, dims.y}, GL_RGB, GL_RGBA, GL_UNSIGNED_BYTE,
-    "freeze_texture", 0
+    "freeze_texture", 1
   }; 
   
   cam.start_stream();
@@ -114,7 +112,7 @@ int shader_playground(void)
   printf("V Dims: (y:%zu,x:%zu)\n", v_tex.dims.x, v_tex.dims.y);
   yuv_streamer.create_texture(&v_tex,
                               tmp + (dims.x * dims.y) + (dims.x * dims.y) / 4);
- uint8_t *still_frame_data = (uint8_t*)calloc(dims.x * dims.y*3, sizeof(uint8_t));
+ uint8_t *still_frame_data = (uint8_t*)calloc(3 * (dims.x * dims.y), sizeof(uint8_t));
  printf("Freeze Dims: (y:%zu,x:%zu)\n", freeze_tex.dims.x, freeze_tex.dims.y);
 
  rp::yuv2rgb(tmp, still_frame_data, dims); 
@@ -124,21 +122,31 @@ int shader_playground(void)
   //yuv_streamer.print_uniform_info();
   yuv_streamer.activate_program();
   char c = '\0';
+  int state = 0;
   while(!glfwWindowShouldClose(window))
     {
-      //c = std::getchar();
-      //std::printf("tick\n");
-      tmp = (uint8_t*)cam.get_frame();
-      yuv_streamer.update_surface(tmp);
-      yuv_streamer.render_surface();
-      glfwSwapBuffers(window);
-      glfwPollEvents();
-      /*struct timespec ts {
-	0,
-	2000000000
+    // c = std::getchar();
+    // std::printf("tick\n");
+    state = glfwGetKey(window, GLFW_KEY_F);
+
+    tmp = (uint8_t *)cam.get_frame();
+    if (state == GLFW_PRESS) {
+      printf("F key pressed\n");      
+      rp::yuv2rgb(tmp, still_frame_data, dims);        
+      yuv_streamer.update_surface_skipped(still_frame_data);
+      
+    }
+    
+    yuv_streamer.update_surface(tmp);
+    yuv_streamer.render_surface();
+    glfwSwapBuffers(window);
+    glfwPollEvents();
+    /*struct timespec ts {
+      0,
+      2000000000
       };
       nanosleep(&ts, nullptr);*/
-      //yuv_streamer.clear_render_surface();
+    yuv_streamer.clear_render_surface();
     };
   return 0;
 }
