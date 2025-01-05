@@ -86,22 +86,23 @@ int shader_playground(void)
   yuv_streamer.vertex_setup(vertices, indices, sizeof(vertices), sizeof(indices));
 
   rp::tex_context y_tex{
-      0, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureY", 0};
+    0, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureY", 0};
   
   rp::tex_context u_tex{
-    1, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
-    "textureU", 0     
-  };
+    1, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureU", 0};
 
   rp::tex_context v_tex{
-    2, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE,
-    "textureV", 0
-  };
+    2, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureV", 0};
  
-  rp::tex_context freeze_tex{
-    2, {dims.x, dims.y}, GL_RGB, GL_RGBA, GL_UNSIGNED_BYTE,
-    "freeze_texture", 1
-  }; 
+  rp::tex_context still_y_tex{
+    3, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "still_textureY", 1};
+  
+  rp::tex_context still_u_tex{
+    4, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "still_textureU", 1};
+
+  rp::tex_context still_v_tex{
+    5, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "still_textureV", 1};
+ 
   
   cam.start_stream();
   uint8_t *tmp=(uint8_t*)cam.get_frame();
@@ -112,13 +113,19 @@ int shader_playground(void)
   printf("V Dims: (y:%zu,x:%zu)\n", v_tex.dims.x, v_tex.dims.y);
   yuv_streamer.create_texture(&v_tex,
                               tmp + (dims.x * dims.y) + (dims.x * dims.y) / 4);
- uint8_t *still_frame_data = (uint8_t*)calloc(3 * (dims.x * dims.y), sizeof(uint8_t));
- printf("Freeze Dims: (y:%zu,x:%zu)\n", freeze_tex.dims.x, freeze_tex.dims.y);
-
- rp::yuv2rgb(tmp, still_frame_data, dims); 
- 
- yuv_streamer.create_texture(&freeze_tex, still_frame_data);  
   
+  printf("still_Y Dims: (y:%zu,x:%zu)\n", still_y_tex.dims.x, still_y_tex.dims.y);
+  yuv_streamer.create_texture(&still_y_tex, tmp);
+  printf("still_U Dims: (y:%zu,x:%zu)\n", still_u_tex.dims.x, still_u_tex.dims.y);
+  yuv_streamer.create_texture(&still_u_tex, tmp + (dims.x*dims.y));
+  printf("still_V Dims: (y:%zu,x:%zu)\n", still_v_tex.dims.x, still_v_tex.dims.y);
+  yuv_streamer.create_texture(&still_v_tex,
+                              tmp + (dims.x * dims.y) + (dims.x * dims.y) / 4);  
+  /* uint8_t *still_frame_data = (uint8_t*)calloc(3 * (dims.x * dims.y), sizeof(uint8_t));
+     printf("Freeze Dims: (y:%zu,x:%zu)\n", freeze_tex.dims.x, freeze_tex.dims.y);*/
+
+  //rp::yuv2rgb(tmp, still_frame_data, dims); 
+   
   //yuv_streamer.print_uniform_info();
   yuv_streamer.activate_program();
   char c = '\0';
@@ -130,14 +137,13 @@ int shader_playground(void)
     state = glfwGetKey(window, GLFW_KEY_F);
 
     tmp = (uint8_t *)cam.get_frame();
-    if (state == GLFW_PRESS) {
-      printf("F key pressed\n");      
-      rp::yuv2rgb(tmp, still_frame_data, dims);        
-      yuv_streamer.update_surface_skipped(still_frame_data);
+
+    yuv_streamer.update_surface(tmp);
+     if (state == GLFW_PRESS) {
+      printf("F key pressed\n");
+      yuv_streamer.update_surface_skipped(tmp);
       
     }
-    
-    yuv_streamer.update_surface(tmp);
     yuv_streamer.render_surface();
     glfwSwapBuffers(window);
     glfwPollEvents();

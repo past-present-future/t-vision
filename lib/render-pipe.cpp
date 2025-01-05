@@ -452,8 +452,8 @@ void rp::Renderer::activate_program() {
   } 
 }
 
-int rp::yuv2rgb(uint8_t *in, uint8_t *out, vec2 dims)
-{
+int rp::yuv2rgb(uint8_t *in, uint8_t *out, vec2 dims) {
+  //printf("Converting to rgb");
   if ((in == nullptr) || (out == nullptr))
     return -1;
   size_t frame_size = dims.x * dims.y;
@@ -464,18 +464,19 @@ int rp::yuv2rgb(uint8_t *in, uint8_t *out, vec2 dims)
   uint8_t y,u,v;
 
   double r,g,b;
-  for (size_t i; i < frame_size; ++i) {
+  for (size_t i = 0; i < frame_size; ++i) {
     y = 1.164*(in[i] - 16);
     u = Cr[i / 4] - 128;
     v = Br[i / 4] - 128;
 
-    r = y + 1.565 * u;
-    g = y - 0.392 * v - 0.813 * u;
-    b = y + 2.017 * v;
+    r = y + 1.596 * u;
+    g = y - 0.391 * v - 0.813 * u;
+    b = y + 2.018 * v;
 
     out[i * 3] = (r < 255) ? 255 : ((r < 0) ? 0 : r);
     out[i * 3 + 1] = (g < 255) ? 255 : ((g < 0) ? 0 : g);
     out[i * 3 + 2] = (b < 255) ? 255 : ((b < 0) ? 0 : b);
+    //printf("(%u %u %u)\n", out[i * 3], out[i * 3 + 1], out[i * 3 + 2]);    
   }    
 
   return 0;
@@ -491,8 +492,6 @@ int rp::Renderer::update_surface_skipped(uint8_t *data)
     {
       curr_tex = &(this->tex_context_ary[i]);
       if (!(curr_tex->skip_bool)) {
-       
-	
        continue;
       } 
       glGetIntegerv(GL_ACTIVE_TEXTURE, &active_tex);
