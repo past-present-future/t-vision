@@ -29,7 +29,7 @@ namespace rp {
     GLuint update_format = GL_RED;
     GLuint data_type = GL_UNSIGNED_BYTE;
     char uniform_name[32] = "";
-    uint8_t skip_bool = 0;    
+    uint8_t group_id = 0;    
   }tex_context;
 
   typedef struct frame_bufferType {
@@ -74,10 +74,10 @@ namespace rp {
     void clear_render_surface();
     void print_supported_extensions();
     void print_uniform_info();
-    int update_surface(uint8_t *data);
+    int update_surface_group(uint8_t *data, uint8_t group);
     void activate_program();
     int render_surface();
-    int update_surface_skipped(uint8_t *data);
+    int update_surface_other(uint8_t *data, uint8_t group);
   };
   
 
