@@ -39,5 +39,6 @@ target_compile_options(${PROJECT_NAME} PRIVATE
     ${WAYLAND_CFLAGS_OTHER}
 )
 
-configure_file(${CMAKE_SOURCE_DIR}/shaders/vertex.glsl ${CMAKE_BINARY_DIR}/vertex.glsl COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/shaders/fragment.glsl ${CMAKE_BINARY_DIR}/fragment.glsl COPYONLY)
+execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_SOURCE_DIR}/shaders
+                                                           ${CMAKE_BINARY_DIR}/shaders)
+
