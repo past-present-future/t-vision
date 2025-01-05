@@ -68,7 +68,7 @@ int shader_playground(void)
   yuv_streamer.enable_gl_debug(MessageCallback);
   //yuv_streamer.print_supported_extensions();
 
-  yuv_streamer.create_shader_program("shaders/vertex.glsl", "shaders/change_detection.frag");
+  yuv_streamer.create_shader_program("shaders/basic_vertex.glsl", "shaders/change_detection_from_black.frag");
   
   float vertices[] =
 	{
@@ -121,37 +121,27 @@ int shader_playground(void)
   printf("still_V Dims: (y:%zu,x:%zu)\n", still_v_tex.dims.x, still_v_tex.dims.y);
   yuv_streamer.create_texture(&still_v_tex,
                               tmp + (dims.x * dims.y) + (dims.x * dims.y) / 4);  
-  /* uint8_t *still_frame_data = (uint8_t*)calloc(3 * (dims.x * dims.y), sizeof(uint8_t));
-     printf("Freeze Dims: (y:%zu,x:%zu)\n", freeze_tex.dims.x, freeze_tex.dims.y);*/
 
-  //rp::yuv2rgb(tmp, still_frame_data, dims); 
-   
   //yuv_streamer.print_uniform_info();
   yuv_streamer.activate_program();
   char c = '\0';
   int state = 0;
   while(!glfwWindowShouldClose(window))
     {
-    // c = std::getchar();
-    // std::printf("tick\n");
-    state = glfwGetKey(window, GLFW_KEY_F);
+        state = glfwGetKey(window, GLFW_KEY_F);
 
     tmp = (uint8_t *)cam.get_frame();
 
-    yuv_streamer.update_surface(tmp);
+    yuv_streamer.update_surface_group(tmp, 0);
      if (state == GLFW_PRESS) {
       printf("F key pressed\n");
-      yuv_streamer.update_surface_skipped(tmp);
+      yuv_streamer.update_surface_group(tmp, 1);
       
     }
     yuv_streamer.render_surface();
     glfwSwapBuffers(window);
     glfwPollEvents();
-    /*struct timespec ts {
-      0,
-      2000000000
-      };
-      nanosleep(&ts, nullptr);*/
+
     yuv_streamer.clear_render_surface();
     };
   return 0;
@@ -200,7 +190,7 @@ int render_api_test(void)
   yuv_streamer.enable_gl_debug(MessageCallback);
   //yuv_streamer.print_supported_extensions();
 
-  yuv_streamer.create_shader_program("vertex.glsl", "fragment.glsl");
+  yuv_streamer.create_shader_program("shaders/basic_vertex.glsl", "shaders/basic_fragment.glsl");
   
   float vertices[] =
 	{
@@ -250,7 +240,7 @@ int render_api_test(void)
       //c = std::getchar();
       //std::printf("tick\n");
       tmp = (uint8_t*)cam.get_frame();
-      yuv_streamer.update_surface(tmp);
+      yuv_streamer.update_surface_group(tmp,0);
       yuv_streamer.render_surface();
       glfwSwapBuffers(window);
       glfwPollEvents();
@@ -315,10 +305,10 @@ int demo(void)
 	  (const char*)glGetStringi(GL_EXTENSIONS, i);
 	std::cout << "     " << extension << std::endl;
   } 
-  std::string vertex_shader_src = load_shader_from_file("vertex.glsl");
+  std::string vertex_shader_src = load_shader_from_file("shaders/basic_vertex.glsl");
   GLuint vert_shader = rp::compile_shader_source(GL_VERTEX_SHADER, vertex_shader_src);
 
-  std::string fragment_shader_src = load_shader_from_file("fragment.glsl");
+  std::string fragment_shader_src = load_shader_from_file("shaders/basic_fragment.glsl");
   GLuint frag_shader = rp::compile_shader_source(GL_FRAGMENT_SHADER, fragment_shader_src);
 
   GLuint shader_program = glCreateProgram();
