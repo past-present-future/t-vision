@@ -2,9 +2,11 @@
 #define MAIN_HPP
 
 #include <iostream>
-#include <GLW
 
 
-void say_hello(void);
+
+int shader_playground(char option);
+int render_api_test(void);
+int demo(void);
 
 #endif /*MAIN_HPP*/
