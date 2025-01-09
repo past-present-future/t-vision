@@ -1,6 +1,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <string.h>
 #include "../include/main.hpp"
 #include "../include/render-pipe.hpp"
 #include "../include/my-utils.hpp"
@@ -21,7 +22,7 @@ if  (severity != GL_DEBUG_SEVERITY_NOTIFICATION)
            ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
 	   type, severity, message );
 }
-int shader_playground(char option)
+int shader_playground(struct main_params* init_data)
 {
   if (!glfwInit())
   {
@@ -56,8 +57,8 @@ int shader_playground(char option)
 	  std::cout << "Using Wayland" << std::endl;
   }
 
-  rp::vec2 dims{320,180};
-  rp::Camera cam("/dev/video0", dims);
+  rp::vec2 dims{init_data->dims.x, init_data->dims.y};
+  rp::Camera cam(init_data->device_path, dims);
   cam.configure_buffers();
 
   rp::Renderer yuv_streamer(dims);
@@ -65,21 +66,10 @@ int shader_playground(char option)
   yuv_streamer.enable_gl_debug(MessageCallback);
   //yuv_streamer.print_supported_extensions();
 
-  switch (option) {
-  case 'w':
-    yuv_streamer.create_shader_program("shaders/basic_vertex.glsl", "shaders/change_detection_from_white.frag");
-    break;
-  case 'b':
+  
     yuv_streamer.create_shader_program(
         "shaders/basic_vertex.glsl",
-        "shaders/change_detection_from_black.frag");
-  default:
-    printf("Defaulting to difference from black\n");
-    yuv_streamer.create_shader_program(
-        "shaders/basic_vertex.glsl",
-        "shaders/change_detection_from_black.frag");
-    break;    
-  }
+        init_data->frag_path);
   
   float vertices[] =
     {
@@ -157,7 +147,7 @@ int shader_playground(char option)
     };
   return 0;
 }
-int render_api_test(void)
+int render_api_test(struct main_params* init_data)
 {
   if (!glfwInit())
   {
@@ -264,16 +254,24 @@ int render_api_test(void)
     };
   return 0;
 }
-int demo(void)
-{
-  
+
+int demo(struct main_params* init_data) {
+  char device_path[64];
+
+  if (init_data->device_path != nullptr) {
+    memcpy(device_path, init_data->device_path, strlen(init_data->device_path));
+    printf("Using %s", device_path);    
+  }
+  else{
+    sprintf(device_path, "/dev/video0");
+    }
   if (!glfwInit())
   {
     std::cerr << "Failed to initialize GLFW" << std::endl;
   }
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
@@ -299,8 +297,8 @@ int demo(void)
   } else {
 	  std::cout << "Using Wayland" << std::endl;
   }
-  rp::vec2 dims{320,180};
-  rp::Camera cam("/dev/video0", dims);
+  rp::vec2 dims{640,360};
+  rp::Camera cam(init_data->device_path, dims);
   cam.configure_buffers();
   glEnable(GL_DEBUG_OUTPUT);
   glDebugMessageCallback( MessageCallback, 0 );
