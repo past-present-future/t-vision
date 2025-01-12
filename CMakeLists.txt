@@ -24,13 +24,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    ${GLFW_LIBRARIES}
-    ${WAYLAND_LIBRARIES}
-    ${OPENGL_LIBRARIES}
-    EGL
-	GLEW
-	my-utils
-	render-pipe
+programs
 )
 
 # Set compile options

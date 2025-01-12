@@ -16,6 +16,7 @@
 #include <sys/mman.h>
 #include <sys/poll.h>
 #include <time.h>
+#include <unistd.h>
 
 
 void GLAPIENTRY MessageCallback_int(GLenum source, GLenum type, GLuint id,
@@ -107,6 +108,12 @@ rp::Camera::Camera(const char* cam_path, vec2 dims){
     printf("Dims got x: %zu, y: %zu\n\rFormat got: %x\n", dims.x, dims.y, this->fmt.fmt.pix.pixelformat);
   }
 }
+rp::Camera::~Camera() {
+  ioctl(this->file_desc, VIDIOC_STREAMOFF, &(this->frame_handle.buffer.type));
+  munmap(this->frame_handle.frame_data, this->frame_handle.buffer.length);
+
+  close(this->file_desc);  
+}    
 
 int rp::Camera::configure_buffers(){
 
@@ -160,11 +167,6 @@ uint8_t* rp::Camera::get_frame(){
     std::cerr << "Could not return buffer: " << errno << std::endl;
   }
   return this->frame_handle.frame_data;
-}
-
-rp::Camera::~Camera(){
-  ioctl(this->file_desc, VIDIOC_STREAMOFF, &(this->frame_handle.buffer.type));
-  munmap(this->frame_handle.frame_data, this->frame_handle.buffer.length);
 }
 
 int rp::Renderer::create_shader_program(const char * vert_shader_path, const char * frag_shader_path){
