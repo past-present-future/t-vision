@@ -19,7 +19,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLFW_INCLUDE_DIRS}
     ${WAYLAND_INCLUDE_DIRS}
     ${OPENGL_INCLUDE_DIR}
-    Include
+    include
 )
 
 # Link libraries
