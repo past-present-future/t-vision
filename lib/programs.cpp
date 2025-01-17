@@ -22,6 +22,140 @@ if  (severity != GL_DEBUG_SEVERITY_NOTIFICATION)
            ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
 	   type, severity, message );
 }
+int ring_list_test(struct main_params* init_data) {
+  if (!glfwInit())
+  {
+    std::cerr << "Failed to initialize GLFW" << std::endl;
+  }
+
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  GLFWwindow* window = glfwCreateWindow(1280, 720, "OpenGL Shader Example", NULL, NULL);
+
+  if (!window)
+  {
+	std::cerr << "Failed to create GLFW window" << std::endl;
+	glfwTerminate();
+	return -1;
+  } 
+
+  glfwMakeContextCurrent(window); // Initialize GLEW
+  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  glewExperimental=true; // Needed in core profilexZx
+  if (glewInit() != GLEW_OK) {
+    fprintf(stderr, "Failed to initialize GLEW\n");
+    return -1;
+}
+
+  if (glfwGetPlatform() != GLFW_PLATFORM_WAYLAND) {
+	  std::cerr << "Warning: Not using Wayland" << std::endl;
+  } else {
+	  std::cout << "Using Wayland" << std::endl;
+  }
+
+  rp::vec2 dims{init_data->dims.x, init_data->dims.y};
+  rp::Camera cam(init_data->device_path, dims);
+  cam.configure_buffers();
+
+  rp::Renderer yuv_streamer(dims);
+
+  yuv_streamer.enable_gl_debug(MessageCallback);
+  //yuv_streamer.print_supported_extensions();
+
+  
+    yuv_streamer.create_shader_program(
+        "shaders/basic_vertex.glsl",
+        init_data->frag_path);
+  
+  float vertices[] =
+    {
+	// positions          // texture coords
+	0.5f,  0.5f, 0.0f,     1.0f, 0.0f,		// top right
+	0.5f, -0.5f, 0.0f,     1.0f, 1.0f,		// bottom right
+	-0.5f, -0.5f, 0.0f,    0.0f, 1.0f,		// bottom left
+	-0.5f,  0.5f, 0.0f,    0.0f, 0.0f		// top left  
+  };
+  unsigned int indices[] = {
+	0, 1, 3, // first triangle
+	1, 2, 3  // second triangle
+  };
+
+  yuv_streamer.vertex_setup(vertices, indices, sizeof(vertices), sizeof(indices));
+
+  rp::tex_context y_tex{
+    0, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureY", 0};
+  
+  rp::tex_context u_tex{
+    1, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureU", 0};
+
+  rp::tex_context v_tex{
+    2, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureV", 0};
+ 
+  rp::tex_context still_y_tex{
+    3, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "still_textureY", 1};
+  
+  rp::tex_context still_u_tex{
+    4, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "still_textureU", 1};
+
+  rp::tex_context still_v_tex{
+    5, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "still_textureV", 1};
+ 
+  
+  cam.start_stream();
+  uint8_t *tmp=(uint8_t*)cam.get_frame();
+  printf("\nY Dims: (y:%zu,x:%zu)\n", y_tex.dims.x, y_tex.dims.y);
+  yuv_streamer.create_texture(&y_tex, tmp);
+  printf("U Dims: (y:%zu,x:%zu)\n", u_tex.dims.x, u_tex.dims.y);
+  yuv_streamer.create_texture(&u_tex, tmp + (dims.x*dims.y));
+  printf("V Dims: (y:%zu,x:%zu)\n", v_tex.dims.x, v_tex.dims.y);
+  yuv_streamer.create_texture(&v_tex,
+                              tmp + (dims.x * dims.y) + (dims.x * dims.y) / 4);
+  
+  printf("still_Y Dims: (y:%zu,x:%zu)\n", still_y_tex.dims.x, still_y_tex.dims.y);
+  yuv_streamer.create_texture(&still_y_tex, tmp);
+  printf("still_U Dims: (y:%zu,x:%zu)\n", still_u_tex.dims.x, still_u_tex.dims.y);
+  yuv_streamer.create_texture(&still_u_tex, tmp + (dims.x*dims.y));
+  printf("still_V Dims: (y:%zu,x:%zu)\n", still_v_tex.dims.x, still_v_tex.dims.y);
+  yuv_streamer.create_texture(&still_v_tex,
+                              tmp + (dims.x * dims.y) + (dims.x * dims.y) / 4);  
+
+  //yuv_streamer.print_uniform_info();
+  yuv_streamer.activate_program();
+  char c = '\0';
+  int state = 0;
+  size_t buffer_offset;
+  buffer_offset = (size_t)(dims.x * dims.y * 1.5);
+  mu::RingList<uint8_t *> frame_list;
+  uint8_t *frames_buffer =
+      (uint8_t *)calloc(60 * (dims.x * dims.y * 1.5), sizeof(uint8_t));
+  uint8_t *buffer_curr = frames_buffer;
+  uint8_t *buffer_end = frames_buffer + 60*buffer_offset;
+
+  while (!glfwWindowShouldClose(window)) { 
+    state = glfwGetKey(window, GLFW_KEY_F);
+
+    tmp = (uint8_t *)cam.get_frame();
+    memcpy(buffer_curr, tmp, buffer_offset);
+    frame_list.add_elem(buffer_curr);
+    buffer_curr += buffer_offset;  
+    yuv_streamer.update_surface_group(tmp, 0);
+    if (frame_list.get_number_of_elements() == 60) {
+      printf("Delay update\n");
+      yuv_streamer.update_surface_group(frame_list.pop_elem(), 1);
+    }
+    if (buffer_curr >= buffer_end)
+      buffer_curr = frames_buffer;
+    yuv_streamer.render_surface();
+    glfwSwapBuffers(window);
+    glfwPollEvents();
+
+    yuv_streamer.clear_render_surface();
+  };
+  return 0;
+}
 int shader_playground(struct main_params* init_data)
 {
   if (!glfwInit())
@@ -546,7 +680,7 @@ int demo(struct main_params* init_data) {
   return 0;
 }
 
-std::string load_shader_from_file(const std::string& filename)
+/*std::string load_shader_from_file(const std::string& filename)
 {
 	std::ifstream file(filename);
 	if(!file.is_open()){
@@ -556,4 +690,4 @@ std::string load_shader_from_file(const std::string& filename)
 	std::stringstream buffer;
 	buffer << file.rdbuf();
 	return buffer.str();
-}
+}*/

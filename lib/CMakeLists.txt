@@ -1,4 +1,4 @@
-add_library(my-utils STATIC my-utils.cpp)
+#add_library(my-utils STATIC my-utils.cpp)
 
 add_library(render-pipe render-pipe.cpp)
 
@@ -10,5 +10,4 @@ ${WAYLAND_LIBRARIES}
 ${OPENGL_LIBRARIES}
 EGL
 GLEW
-my-utils
 render-pipe)

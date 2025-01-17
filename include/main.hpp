@@ -15,6 +15,7 @@ struct main_params
 
 int shader_playground(struct main_params* init_data);//char option);
 int render_api_test(struct main_params* init_data);
-int demo(struct main_params* init_data);
+int demo(struct main_params *init_data);
+int ring_list_test(struct main_params* init_data);
 
 #endif /*MAIN_HPP*/

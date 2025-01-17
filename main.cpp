@@ -45,8 +45,13 @@ int main(int argc, const char *argv[]) {
       case 's':
 	i++;
         strcpy(params.frag_path, argv[i]);
-	printf("Fragment shader path: %s", params.frag_path);        
-	break;        
+	printf("Fragment shader path: %s", params.frag_path);
+        break;
+      case 't':
+        
+	program='t';
+	
+	break;
       default:printf("Unknown option selected\nLooking for video device");
       }
        //shader_playground(&params);
@@ -85,6 +90,9 @@ int main(int argc, const char *argv[]) {
     break;
   case 's':
     shader_playground(&params);
+    break;
+  case 't':
+    ring_list_test(&params);
     break;
   }
     
