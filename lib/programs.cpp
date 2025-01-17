@@ -23,34 +23,6 @@ if  (severity != GL_DEBUG_SEVERITY_NOTIFICATION)
 	   type, severity, message );
 }
 int ring_list_test(struct main_params* init_data) {
-  char one[] = "jedan";
-  char two[] = "dva";
-  char three[] = "tri";
-  char four[] = "cetiri";
-  char five[] = "pet";
-  char six[] = "sest";
-
-  mu::RingList<char*> number_list;
-
-  number_list.add_elem(one);
-  number_list.add_elem(two);
-  number_list.add_elem(three);
-  number_list.add_elem(four);
-  number_list.add_elem(five);
-  number_list.add_elem(six);
-
-  size_t elem_num = number_list.get_number_of_elements();
-  printf("Got %zu items\n", elem_num);  
-  for (size_t i = 0; i < elem_num; ++i){
-    printf("%s\n", number_list.pop_elem());
-  }
-  if (!number_list.get_number_of_elements())
-    printf("List is empty\n");
-  else
-    printf("List has %zu elemts left\n", number_list.get_number_of_elements());
-
-
-
   if (!glfwInit())
   {
     std::cerr << "Failed to initialize GLFW" << std::endl;
