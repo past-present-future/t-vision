@@ -17,7 +17,6 @@ int main(int argc, const char *argv[]) {
       case 'v':
         i++;
         params.device_path=argv[i];
-	//demo(&params);
 	break;
       case 'd':
 	printf("Case d got\n");        
@@ -40,7 +39,6 @@ int main(int argc, const char *argv[]) {
       case 'p':
         i++;
 	program=argv[i][0];
-        //shader_playground(&params);
         break;
       case 's':
 	i++;
@@ -54,7 +52,6 @@ int main(int argc, const char *argv[]) {
 	break;
       default:printf("Unknown option selected\nLooking for video device");
       }
-       //shader_playground(&params);
     }
   }
   else {

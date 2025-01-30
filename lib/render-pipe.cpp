@@ -59,7 +59,22 @@ GLuint rp::compile_shader_source(GLenum type, const std::string& source){
   }
   return shader;
 }
-rp::Renderer::Renderer(rp::vec2 dims) : texture_num((size_t)0), tex_context_ary{0}, viewport_dims{dims.x, dims.y} {}
+
+rp::Recorder::Recorder(char *const record_dir) {
+  this->p_dir = opendir(record_dir);
+  if (this->p_dir == nullptr)
+    std::cerr << "Not a valid directory, error code: " << errno;
+
+  struct dirent *dir_entry = nullptr;
+  while ((dir_entry = readdir(this->p_dir)) != nullptr) {
+    if (dir_entry->d_type == DT_REG) {
+      strstr(dir_entry->d_name, "recording-");
+
+    }      
+
+  }  
+  
+}    
 
 rp::Camera::Camera(){
   this->file_desc = open("/dev/video0", O_RDWR);
@@ -168,6 +183,10 @@ uint8_t* rp::Camera::get_frame(){
   }
   return this->frame_handle.frame_data;
 }
+
+rp::Renderer::Renderer(rp::vec2 dims)
+    : texture_num((size_t)0), tex_context_ary{0},
+      viewport_dims{dims.x, dims.y} {}
 
 int rp::Renderer::create_shader_program(const char * vert_shader_path, const char * frag_shader_path){
   GLint err = GL_NO_ERROR;

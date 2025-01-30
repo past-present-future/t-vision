@@ -11,6 +11,7 @@
 #include <GLFW/glfw3.h>
 
 #include <linux/videodev2.h>
+#include <dirent.h>
 #include <iostream>
 namespace rp {
 
@@ -38,6 +39,14 @@ namespace rp {
 	uint8_t *frame_data;
   } frame_buffer;
 
+  class Recorder{
+    FILE *p_fd;
+    DIR *p_dir;
+  public:
+    Recorder(char *const record_dir);
+    ~Recorder();
+  };
+  
   class Camera{
   private:
 	int file_desc;

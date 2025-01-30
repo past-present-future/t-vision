@@ -2,7 +2,9 @@
 #define MY_UTILS_HPP
 #include <iostream>
 
-
+/* @TODO
+   Make an event manager that will handle requests. Idea is that it will have a queue of tasks that will be distributed to worker threads
+*/
 std::string load_shader_from_file(const std::string& filename);
 namespace mu {
 template <typename T> class Node {
