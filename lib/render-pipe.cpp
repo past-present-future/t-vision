@@ -29,14 +29,15 @@ if  (severity != GL_DEBUG_SEVERITY_NOTIFICATION)
 	   type, severity, message );
 }
 
-float default_vertices[] =
-  {
+float default_vertices[] = {
     // positions          // texture coords
-    0.5f,  0.5f, 0.0f,     1.0f, 0.0f,		// top right
-    0.5f, -0.5f, 0.0f,     1.0f, 1.0f,		// bottom right
-    -0.5f, -0.5f, 0.0f,    0.0f, 1.0f,		// bottom left
-    -0.5f,  0.5f, 0.0f,    0.0f, 0.0f		// top left  
-  };
+    0.5f,  0.5f,  0.0f, 1.0f, 0.0f, // top right
+    0.5f,  -0.5f, 0.0f, 1.0f, 1.0f, // bottom right
+    -0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // bottom left
+    -0.5f, 0.5f,  0.0f, 0.0f, 0.0f  // top left
+};
+
+
 unsigned int default_indices[] = {
   0, 1, 3, // first triangle
   1, 2, 3  // second triangle

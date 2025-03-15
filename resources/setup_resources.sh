@@ -33,7 +33,7 @@ else
 	VIDEO_NR=0
     fi
 
-    sudo modprobe v4l2loopback devices=1 video_nr=$VIDEO_NR card_label="$CAMERA_NAME" exclusive_caps=1
+    sudo modprobe v4l2loopback devices=1 video_nr=0 card_label="$CAMERA_NAME" exclusive_caps=1
 fi
 
 

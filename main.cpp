@@ -18,8 +18,7 @@ int main(int argc, const char *argv[]) {
         i++;
         params.device_path=argv[i];
 	break;
-      case 'd':
-	printf("Case d got\n");        
+      case 'd':    
         char *y_loc;
         char dim_str[16];
 	i++;
@@ -43,7 +42,7 @@ int main(int argc, const char *argv[]) {
       case 's':
 	i++;
         strcpy(params.frag_path, argv[i]);
-	printf("Fragment shader path: %s", params.frag_path);
+	printf("Fragment shader path: %s\n", params.frag_path);
         break;
       case 't':
         
@@ -76,20 +75,17 @@ int main(int argc, const char *argv[]) {
       }
       
     }
-      demo(&params);
+      
   }
   switch (program) {
-  case 'd':
-    demo(&params);
-    break;
-  case 'a':
+   case 'a':
     render_api_test(&params);
     break;
   case 's':
     shader_playground(&params);
     break;
-  case 't':
-    ring_list_test(&params);
+  case 'r':
+    recorder_program(&params);
     break;
   }
     
