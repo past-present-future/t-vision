@@ -43,7 +43,7 @@ namespace rp {
     FILE *p_fd;
     DIR *p_dir;
   public:
-    Recorder(char *const record_dir);
+    Recorder(const char *record_dir);
     ~Recorder();
   };
   

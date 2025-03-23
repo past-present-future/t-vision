@@ -160,10 +160,10 @@ int recorder_program(struct main_params *init_data) {
   
   mu::RingList<uint8_t *> frame_list;
   uint8_t *frames_buffer =
-      (uint8_t *)calloc(frames_to_save * buffer_offset, sizeof(uint8_t));
+      (uint8_t *)calloc(frames_to_save * buffer_offset + 1, sizeof(uint8_t));
   
   uint8_t *buffer_curr = frames_buffer;
-  uint8_t *buffer_end = frames_buffer + frames_to_save * buffer_offset;
+  uint8_t *buffer_end = frames_buffer + frames_to_save * buffer_offset+1;
   printf("buffer size: %zu\n", frames_to_save*buffer_offset);
   printf("prepared to read camera frames\n");
   size_t ind;
@@ -195,14 +195,17 @@ int recorder_program(struct main_params *init_data) {
     state = glfwGetKey(window, GLFW_KEY_F);
     
     tmp = frame_list.pop_elem();
-    yuv_streamer.update_surface_group(tmp, 0);
+    yuv_streamer.update_surface_group(tmp, 1);
     
     yuv_streamer.render_surface();
     glfwSwapBuffers(window);
     glfwPollEvents();
     usleep(333);
     yuv_streamer.clear_render_surface();
-  };
+
+    printf(" %c\n", tmp[0]);
+
+    };
   return 0;
 }
 
