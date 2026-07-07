@@ -39,7 +39,7 @@ int main(int argc, const char *argv[]) {
 	break;
       case 'p':
         i++;
-	program=argv[i][0];
+	      program=argv[i][0];
         //shader_playground(&params);
         break;
       case 's':

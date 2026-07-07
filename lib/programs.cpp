@@ -2,9 +2,13 @@
 #include <fstream>
 #include <sstream>
 #include <string.h>
+#include <cstdlib>
+#include <iomanip>
+#include <memory>
 #include "../include/main.hpp"
 #include "../include/render-pipe.hpp"
 #include "../include/my-utils.hpp"
+#include <libcamera/libcamera.h>
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
@@ -22,6 +26,7 @@ if  (severity != GL_DEBUG_SEVERITY_NOTIFICATION)
            ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
 	   type, severity, message );
 }
+
 int ring_list_test(struct main_params* init_data) {
   if (!glfwInit())
   {
@@ -679,6 +684,12 @@ int demo(struct main_params* init_data) {
   glfwTerminate();
   return 0;
 }
+
+static void rpi_licamera_demo(struct main_params* init_data){
+  std::unique_ptr cm = std::make_unique<libcamera::CameraManager>();
+
+}
+
 
 /*std::string load_shader_from_file(const std::string& filename)
 {
