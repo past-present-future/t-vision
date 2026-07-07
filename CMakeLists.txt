@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.30.5)
+cmake_minimum_required(VERSION 3.16)
 project(ghastly)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -9,22 +9,24 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLFW REQUIRED glfw3)
 pkg_check_modules(WAYLAND REQUIRED wayland-client wayland-egl)
 find_package(OpenGL REQUIRED)
+pkg_check_modules(LIBCAMERA REQUIRED IMPORTED_TARGET libcamera)
 
 add_executable(${PROJECT_NAME} main.cpp)
 
 add_subdirectory(lib)
 
+target_link_directories(${PROJECT_NAME} PRIVATE ${LIBCAMERA_LIBRARY_DIRS})
 # Include directories
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLFW_INCLUDE_DIRS}
     ${WAYLAND_INCLUDE_DIRS}
-    ${OPENGL_INCLUDE_DIR}
     include
 )
 
 # Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
-programs
+    programs
+    ${LIBCAMERA_LIBRARIES}
 )
 
 # Set compile options
