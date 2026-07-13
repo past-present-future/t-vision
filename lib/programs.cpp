@@ -4,7 +4,10 @@
 #include <string.h>
 #include <cstdlib>
 #include <iomanip>
+#include <iostream>
 #include <memory>
+#include <thread>
+#include <vector>
 #include "../include/main.hpp"
 #include "../include/render-pipe.hpp"
 #include "../include/my-utils.hpp"
@@ -685,9 +688,173 @@ int demo(struct main_params* init_data) {
   return 0;
 }
 
-static void rpi_licamera_demo(struct main_params* init_data){
-  std::unique_ptr cm = std::make_unique<libcamera::CameraManager>();
+using namespace libcamera;
+using namespace std::chrono_literals;
+static std::shared_ptr<Camera> camera;
+//Camera camera;
+static void requestComplete(Request *request);
+static void requestComplete(Request *request)
+{
+    if (request->status() == Request::RequestCancelled)
+        return;
 
+    const auto &buffers = request->buffers();
+
+    for (auto const &bufferPair : buffers) {
+        FrameBuffer *buffer = bufferPair.second;
+        const FrameMetadata &metadata = buffer->metadata();
+
+        std::cout << "seq=" << std::setw(6) << std::setfill('0')
+                  << metadata.sequence << " bytesused=";
+
+        unsigned int nplane = 0;
+        for (const FrameMetadata::Plane &plane : metadata.planes()) {
+            std::cout << plane.bytesused;
+            if (++nplane < metadata.planes().size())
+                std::cout << "/";
+        }
+
+        std::cout << std::endl;
+    }
+
+    request->reuse(Request::ReuseBuffers);
+    camera->queueRequest(request);
+}
+
+static int rpi_licamera_demo(struct main_params* init_data){
+  std::unique_ptr cm = std::make_unique<libcamera::CameraManager>();
+  if(cm->start())
+  {
+    std::cerr << "Failed to start camera manage\n";
+    return EXIT_FAILURE;
+  }
+
+  auto cameras = cm->cameras();
+  if (cameras.empty())
+  {
+    std::cerr << "No cameras found\n";
+    return EXIT_FAILURE;
+  }
+
+  std::string camerasId = cameras[0]->id();
+  camera = cm->get(camerasId);
+  if(!camera)
+  {
+    std::cerr << "Failed to get camera\n";
+    cm->stop();
+    return EXIT_FAILURE;
+  }
+
+  if(camera->acquire())
+  {
+    std::cerr << "Failed to acquire camera\n";
+    camera.reset();
+    cm->stop();
+    return EXIT_FAILURE;
+  }
+  std::unique_ptr<CameraConfiguration> config =
+        camera->generateConfiguration({ StreamRole::Viewfinder });
+
+    if (!config || config->empty()) {
+        std::cerr << "Failed to generate configuration\n";
+        camera->release();
+        camera.reset();
+        cm->stop();
+        return EXIT_FAILURE;
+    }
+  StreamConfiguration &streamConfig = config->at(0);
+  std::cout << "Default config: " << streamConfig.toString() << "\n";
+  streamConfig.size.width = 640;
+  streamConfig.size.height = 480;
+
+  CameraConfiguration::Status validation = config->validate();
+  if(validation == CameraConfiguration::Invalid)
+  {
+    std::cerr << "Invalid camera configuration\n";
+    camera->release();
+    camera.reset();
+    cm->stop();
+    return EXIT_FAILURE;
+  }
+
+  auto allocator = std::make_unique<FrameBufferAllocator>(camera);
+
+  for (StreamConfiguration &cfg : *config)
+  {
+    if (allocator->allocate(cfg.stream()) < 0)
+    {
+      std::cerr << "Failed to allocate buffers\n";
+      camera->release();
+      camera.reset();
+      cm->stop();
+      return EXIT_FAILURE;
+    }
+
+    std::cout << "Allocated " << allocator->buffers(cfg.stream()).size() << " buffers\n";
+  }
+  
+  Stream *stream = streamConfig.stream();
+  const auto &buffers = allocator ->buffers(stream);
+
+  std::vector<std::unique_ptr<Request>> requests;
+  requests.reserve(buffers.size());
+
+  for (unsigned int i = 0; i < buffers.size(); ++i)
+  {
+    std::unique_ptr<Request> request = camera->createRequest();
+    if (!request)
+    {
+      std::cerr << "Failed to create request\n";
+      camera->release();
+      camera.reset();
+      cm->stop();
+      return EXIT_FAILURE;
+    }
+
+    if (request->addBuffer(stream, buffers[i].get()) < 0)
+    {
+      std::cerr << "Failed to add buffer to request\n";
+      camera->release();
+      camera.reset();
+      cm->stop();
+      return EXIT_FAILURE;
+    }
+
+    requests.push_back(std::move(request));
+  }
+
+  camera->requestCompleted.connect(requestComplete);
+
+  if (camera->start() < 0)
+  {
+    std::cerr << "Failed to start camera\n";
+    camera->release();
+    camera.reset();
+    cm->stop();
+    return EXIT_FAILURE;
+  }
+
+  for (auto &request : requests)
+  {
+    if (camera->queueRequest(request.get()) < 0)
+    {
+      std::cerr << "Failed to queue request\n";
+      camera->stop();
+      camera->release();
+      camera.reset();
+      cm->stop();
+      return EXIT_FAILURE;
+    }
+  }
+
+  std::this_thread::sleep_for(3s);
+
+  camera->stop();
+  allocator->free(stream);
+  camera->release();
+  camera.reset();
+  cm->stop();
+  return EXIT_FAILURE;
 }
 
 
