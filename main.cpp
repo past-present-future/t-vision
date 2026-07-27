@@ -58,7 +58,7 @@ int main(int argc, const char *argv[]) {
     }
   }
   else {
-    DIR *dev_dir, *v4l2_dev_dir;
+    /*(DIR *dev_dir, *v4l2_dev_dir;
     struct dirent *dir, *v4l2_dir;
     char path[64];
     dev_dir = opendir("/dev");
@@ -78,8 +78,10 @@ int main(int argc, const char *argv[]) {
         }
       }
       
-    }
-      demo(&params);
+    }*/
+   rpi_licamera_demo(nullptr);
+  
+      //demo(&params);
   }
   switch (program) {
   case 'd':

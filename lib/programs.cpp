@@ -721,8 +721,10 @@ static void requestComplete(Request *request)
     camera->queueRequest(request);
 }
 
-static int rpi_licamera_demo(struct main_params* init_data){
+int rpi_licamera_demo(struct main_params* init_data){
+
   std::unique_ptr cm = std::make_unique<libcamera::CameraManager>();
+
   if(cm->start())
   {
     std::cerr << "Failed to start camera manage\n";
@@ -730,6 +732,7 @@ static int rpi_licamera_demo(struct main_params* init_data){
   }
 
   auto cameras = cm->cameras();
+
   if (cameras.empty())
   {
     std::cerr << "No cameras found\n";
@@ -738,6 +741,7 @@ static int rpi_licamera_demo(struct main_params* init_data){
 
   std::string camerasId = cameras[0]->id();
   camera = cm->get(camerasId);
+
   if(!camera)
   {
     std::cerr << "Failed to get camera\n";
@@ -752,6 +756,7 @@ static int rpi_licamera_demo(struct main_params* init_data){
     cm->stop();
     return EXIT_FAILURE;
   }
+  
   std::unique_ptr<CameraConfiguration> config =
         camera->generateConfiguration({ StreamRole::Viewfinder });
 
@@ -762,12 +767,15 @@ static int rpi_licamera_demo(struct main_params* init_data){
         cm->stop();
         return EXIT_FAILURE;
     }
+   
   StreamConfiguration &streamConfig = config->at(0);
   std::cout << "Default config: " << streamConfig.toString() << "\n";
+
   streamConfig.size.width = 640;
   streamConfig.size.height = 480;
 
   CameraConfiguration::Status validation = config->validate();
+
   if(validation == CameraConfiguration::Invalid)
   {
     std::cerr << "Invalid camera configuration\n";
@@ -777,6 +785,15 @@ static int rpi_licamera_demo(struct main_params* init_data){
     return EXIT_FAILURE;
   }
 
+  std::cout << "Validated config: " << streamConfig.toString() << std::endl;
+
+  if (camera->configure(config.get()) < 0) {
+      std::cerr << "Failed to configure camera\n";
+      camera->release();
+      camera.reset();
+      cm->stop();
+      return EXIT_FAILURE;
+  }
   auto allocator = std::make_unique<FrameBufferAllocator>(camera);
 
   for (StreamConfiguration &cfg : *config)
@@ -834,6 +851,7 @@ static int rpi_licamera_demo(struct main_params* init_data){
     return EXIT_FAILURE;
   }
 
+  // Queue the requests to the camera device
   for (auto &request : requests)
   {
     if (camera->queueRequest(request.get()) < 0)
@@ -848,6 +866,7 @@ static int rpi_licamera_demo(struct main_params* init_data){
   }
 
   std::this_thread::sleep_for(3s);
+
 
   camera->stop();
   allocator->free(stream);
