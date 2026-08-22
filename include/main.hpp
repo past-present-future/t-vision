@@ -17,6 +17,6 @@ int shader_playground(struct main_params* init_data);//char option);
 int render_api_test(struct main_params* init_data);
 int demo(struct main_params *init_data);
 int ring_list_test(struct main_params* init_data);
-int rpi_licamera_demo(struct main_params* init_data);
+int rpi_libcamera_demo(struct main_params* init_data);
 
 #endif /*MAIN_HPP*/
