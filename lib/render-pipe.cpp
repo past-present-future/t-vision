@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 
+
 void GLAPIENTRY MessageCallback_int(GLenum source, GLenum type, GLuint id,
                                     GLenum severity, GLsizei length,
                                     const GLchar *message,
@@ -59,8 +60,10 @@ GLuint rp::compile_shader_source(GLenum type, const std::string& source){
   }
   return shader;
 }
+// Constructor for Renderer class
 rp::Renderer::Renderer(rp::vec2 dims) : texture_num((size_t)0), tex_context_ary{0}, viewport_dims{dims.x, dims.y} {}
 
+// Default constructor for Camera class
 rp::Camera::Camera(){
   this->file_desc = open("/dev/video0", O_RDWR);
   if(this->file_desc < 0){
@@ -81,6 +84,7 @@ rp::Camera::Camera(){
   }
 }
 
+// Constructor for Camera class with specified camera path and dimensions
 rp::Camera::Camera(const char* cam_path, vec2 dims){
   this->file_desc = open(cam_path, O_RDWR);
   if(this->file_desc < 0){
@@ -108,6 +112,8 @@ rp::Camera::Camera(const char* cam_path, vec2 dims){
     printf("Dims got x: %zu, y: %zu\n\rFormat got: %x\n", dims.x, dims.y, this->fmt.fmt.pix.pixelformat);
   }
 }
+
+// Destructor for Camera class
 rp::Camera::~Camera() {
   ioctl(this->file_desc, VIDIOC_STREAMOFF, &(this->frame_handle.buffer.type));
   munmap(this->frame_handle.frame_data, this->frame_handle.buffer.length);
@@ -115,6 +121,7 @@ rp::Camera::~Camera() {
   close(this->file_desc);  
 }    
 
+//
 int rp::Camera::configure_buffers(){
 
   this->frame_handle.req.count = 1;
@@ -138,6 +145,7 @@ int rp::Camera::configure_buffers(){
   return 0;
 }
 
+// Start streaming from the camera
 int rp::Camera::start_stream(){
   int ret;
   ret = ioctl(this->file_desc, VIDIOC_STREAMON, &(this->frame_handle.buffer.type));
@@ -148,6 +156,7 @@ int rp::Camera::start_stream(){
   return ret; 
 }
 
+// Get a single frame from the camera
 uint8_t* rp::Camera::get_frame(){
   struct timeval tv;
   int ret=0;
@@ -216,6 +225,7 @@ int rp::Renderer::create_shader_program(const char * vert_shader_path, const cha
   return 0;
 }
 
+//
 std::string rp::load_shader_from_file(const std::string& filename)
 {
   std::ifstream file(filename);
@@ -228,6 +238,7 @@ std::string rp::load_shader_from_file(const std::string& filename)
   return buffer.str();
 }
 
+//
 int rp::Renderer::vertex_setup(float *vertices, unsigned int *indices, size_t vertices_size, size_t indices_size)
 {
   GLenum err=GL_NO_ERROR;
