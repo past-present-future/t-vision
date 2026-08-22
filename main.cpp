@@ -79,7 +79,7 @@ int main(int argc, const char *argv[]) {
       }
       
     }*/
-   rpi_licamera_demo(nullptr);
+   rpi_libcamera_demo(nullptr);
   
       //demo(&params);
   }

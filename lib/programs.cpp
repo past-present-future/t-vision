@@ -4,6 +4,8 @@
 #include <string.h>
 #include <cstdlib>
 #include <iomanip>
+#include <mutex>
+#include <condition_variable>
 #include <iostream>
 #include <memory>
 #include <thread>
@@ -689,7 +691,9 @@ int demo(struct main_params* init_data) {
 }
 
 using namespace libcamera;
-using namespace std::chrono_literals;
+static std::mutex mtx;
+static std::condition_variable cv;
+static bool frame_ready = false;
 static std::shared_ptr<Camera> camera;
 //Camera camera;
 static void requestComplete(Request *request);
@@ -721,10 +725,92 @@ static void requestComplete(Request *request)
     camera->queueRequest(request);
 }
 
-int rpi_licamera_demo(struct main_params* init_data){
+int rpi_libcamera_demo(struct main_params* init_data){
 
+  /*Initialize GLFW*/
+  if (!glfwInit())
+  {
+    std::cerr << "Failed to initialize GLFW\n";
+    return EXIT_FAILURE;
+  }
+
+  /* Create window */
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+  GLFWwindow* window = glfwCreateWindow(init_data->dims.x, init_data->dims.y, "Libcamera Demo", NULL, NULL);
+  if (!window)
+  {
+    std::cerr << "Failed to create GLFW window\n";
+    glfwTerminate();
+    return EXIT_FAILURE;
+  }
+  glfwMakeContextCurrent(window);
+
+  /*Configure window*/
+  glfwMakeContextCurrent(window);
+  glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+  glewExperimental = true; // Needed in core profile
+  if (glewInit() != GLEW_OK) {
+    std::cerr << "Failed to initialize GLEW\n";
+    return EXIT_FAILURE;
+  }
+
+  if (glfwGetPlatform() != GLFW_PLATFORM_WAYLAND) {
+    std::cerr << "Warning: Not using Wayland\n";
+    return EXIT_FAILURE;
+  } else {
+    std::cout << "Using Wayland\n";
+  }
+
+  rp::vec2 dims{init_data->dims.x, init_data->dims.y};
+  rp::Renderer yuv_streamer(dims);
+  yuv_streamer.enable_gl_debug(MessageCallback);
+
+  yuv_streamer.create_shader_program("shaders/basic_vertex.glsl", init_data->frag_path);
+
+  float vertices[] =
+  {
+    // positions          // texture coords
+    0.5f,  0.5f, 0.0f,     1.0f, 0.0f,		// top right
+    0.5f, -0.5f, 0.0f,     1.0f, 1.0f,		// bottom right
+    -0.5f, -0.5f, 0.0f,    0.0f, 1.0f,		// bottom left
+    -0.5f,  0.5f, 0.0f,    0.0f, 0.0f		// top left  
+  };
+  unsigned int indices[] = {
+    0, 1, 3, // first triangle
+    1, 2, 3  // second triangle
+  };
+
+  yuv_streamer.vertex_setup(vertices, indices, sizeof(vertices), sizeof(indices));
+
+  rp::tex_context y_tex{
+    0, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureY", 0};
+  rp::tex_context u_tex{
+    1, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureU", 0};
+  rp::tex_context v_tex{
+    2, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "textureV", 0};
+    rp::tex_context still_y_tex{
+    3, {dims.x, dims.y}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "still_textureY", 1};
+  rp::tex_context still_u_tex{
+    4, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "still_textureU", 1};
+  rp::tex_context still_v_tex{
+    5, {dims.x / 2, dims.y / 2}, GL_RED, GL_RGBA, GL_UNSIGNED_BYTE, "still_textureV", 1}; 
+
+  yuv_streamer.create_texture(&y_tex, nullptr);
+  yuv_streamer.create_texture(&u_tex, nullptr);
+  yuv_streamer.create_texture(&v_tex, nullptr);
+  yuv_streamer.create_texture(&still_y_tex, nullptr);
+  yuv_streamer.create_texture(&still_u_tex, nullptr);
+  yuv_streamer.create_texture(&still_v_tex, nullptr);
+
+  yuv_streamer.activate_program();
+  
+  /* Initialize the camera manager */
   std::unique_ptr cm = std::make_unique<libcamera::CameraManager>();
 
+  /* Start the camera manager */
   if(cm->start())
   {
     std::cerr << "Failed to start camera manage\n";
@@ -760,22 +846,33 @@ int rpi_licamera_demo(struct main_params* init_data){
   std::unique_ptr<CameraConfiguration> config =
         camera->generateConfiguration({ StreamRole::Viewfinder });
 
-    if (!config || config->empty()) {
-        std::cerr << "Failed to generate configuration\n";
-        camera->release();
-        camera.reset();
-        cm->stop();
-        return EXIT_FAILURE;
-    }
-   
+  if (!config || config->empty()) {
+      std::cerr << "Failed to generate configuration\n";
+      camera->release();
+      camera.reset();
+      cm->stop();
+      return EXIT_FAILURE;
+  }
+  
   StreamConfiguration &streamConfig = config->at(0);
+  StreamFormats format = streamConfig.formats();
   std::cout << "Default config: " << streamConfig.toString() << "\n";
 
   streamConfig.size.width = 640;
   streamConfig.size.height = 480;
+  streamConfig.pixelFormat = libcamera::formats::YUV420;
 
   CameraConfiguration::Status validation = config->validate();
-
+  
+  std::cout << "Supported formats: \n";
+  for (const PixelFormat &pf : format.pixelformats())
+  {
+    std::cout << "  " << pf.toString() << "\n";
+    for (const auto &size : format.sizes(pf)) {
+      //std::cout << "  " << size.width << "x" << size.height << "\n";
+    }
+  }
+  
   if(validation == CameraConfiguration::Invalid)
   {
     std::cerr << "Invalid camera configuration\n";
@@ -816,6 +913,7 @@ int rpi_licamera_demo(struct main_params* init_data){
   std::vector<std::unique_ptr<Request>> requests;
   requests.reserve(buffers.size());
 
+  // Create requests and add buffers to them
   for (unsigned int i = 0; i < buffers.size(); ++i)
   {
     std::unique_ptr<Request> request = camera->createRequest();
@@ -852,6 +950,7 @@ int rpi_licamera_demo(struct main_params* init_data){
   }
 
   // Queue the requests to the camera device
+
   for (auto &request : requests)
   {
     if (camera->queueRequest(request.get()) < 0)
@@ -864,8 +963,7 @@ int rpi_licamera_demo(struct main_params* init_data){
       return EXIT_FAILURE;
     }
   }
-
-  std::this_thread::sleep_for(3s);
+  std::this_thread::sleep_for(std::chrono::seconds(3)); // Wait for a few seconds to capture frames
 
 
   camera->stop();
